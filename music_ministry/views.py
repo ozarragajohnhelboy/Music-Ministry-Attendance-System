@@ -249,6 +249,19 @@ def assign_members(request, event_id):
 
 
 @login_required
+@user_passes_test(is_admin)
+def delete_event(request, event_id):
+    if request.method == 'POST':
+        event = get_object_or_404(Event, id=event_id)
+        event_title = event.title
+        event.delete()
+        messages.success(request, f'Event "{event_title}" has been deleted successfully!')
+        return redirect('dashboard')
+    else:
+        return redirect('dashboard')
+
+
+@login_required
 @require_http_methods(["GET"])
 def api_events(request):
     # All users can see all events in calendar

@@ -83,6 +83,11 @@
                 <button class="btn btn-secondary view-details-btn" data-event-id="{{ event.id }}">View Details</button>
                 {% if user.role == 'admin' %}
                   <button class="btn btn-primary assign-members-btn" data-event-id="{{ event.id }}">Assign Members</button>
+                  <button class="btn btn-danger btn-icon delete-event-btn" data-event-id="{{ event.id }}" data-event-title="{{ event.title }}" title="Delete Event">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 {% endif %}
               </div>
             </div>
@@ -294,5 +299,87 @@
         </form>
       </div>
     </div>
+
+    <!-- Delete Event Confirmation Modal -->
+    <div id="deleteEventModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Delete Event</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete the event <strong id="deleteEventTitle"></strong>?</p>
+          <p style="color: var(--text-gray); font-size: 0.9rem; margin-top: 1rem;">
+            <strong>Warning:</strong> This action cannot be undone. All member assignments for this event will also be deleted.
+          </p>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+          <form id="deleteEventForm" method="post" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Delete Event</button>
+          </form>
+        </div>
+      </div>
+    </div>
   {% endif %}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Delete event functionality
+      const deleteButtons = document.querySelectorAll('.delete-event-btn');
+      const deleteModal = document.getElementById('deleteEventModal');
+      const deleteEventTitle = document.getElementById('deleteEventTitle');
+      const deleteEventForm = document.getElementById('deleteEventForm');
+
+      deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const eventId = this.getAttribute('data-event-id');
+          const eventTitle = this.getAttribute('data-event-title');
+          
+          deleteEventTitle.textContent = `"${eventTitle}"`;
+          deleteEventForm.action = `/event/delete/${eventId}/`;
+          
+          deleteModal.classList.add('active');
+        });
+      });
+
+      // Handle successful deletion
+      deleteEventForm.addEventListener('submit', function(e) {
+        // The form will submit normally, but we can add a success handler
+        // The page will redirect after successful deletion, so the calendar will refresh
+      });
+
+      // Function to refresh calendar after deletion
+      window.refreshCalendarAfterDeletion = function() {
+        if (window.calendarManager) {
+          window.calendarManager.loadEvents();
+        }
+        if (window.eventFilter) {
+          window.eventFilter.refreshFilter();
+        }
+      };
+
+      // Close modal functionality
+      const modalCloses = document.querySelectorAll('.modal-close');
+      modalCloses.forEach(closeBtn => {
+        closeBtn.addEventListener('click', function() {
+          const modal = this.closest('.modal');
+          if (modal) {
+            modal.classList.remove('active');
+          }
+        });
+      });
+
+      // Close modal when clicking outside
+      const modals = document.querySelectorAll('.modal');
+      modals.forEach(modal => {
+        modal.addEventListener('click', function(e) {
+          if (e.target === this) {
+            this.classList.remove('active');
+          }
+        });
+      });
+    });
+  </script>
 {% endblock %}

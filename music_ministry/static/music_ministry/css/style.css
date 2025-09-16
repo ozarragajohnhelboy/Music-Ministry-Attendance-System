@@ -316,6 +316,29 @@ body {
     color: var(--white);
 }
 
+.btn-danger {
+    background: #dc2626;
+    color: var(--white);
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
+}
+
+.btn-icon {
+    padding: 0.5rem;
+    min-width: auto;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon svg {
+    width: 16px;
+    height: 16px;
+}
 .modal .btn {
     min-width: 100px;
 }
@@ -474,6 +497,48 @@ body {
     box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
+/* Password input wrapper and toggle button */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input {
+    padding-right: 3rem;
+    /* Make space for the eye icon */
+}
+
+.password-toggle {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.password-toggle:hover {
+    background: var(--purple-bg);
+}
+
+.eye-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--text-gray);
+    transition: color 0.2s;
+}
+
+.password-toggle:hover .eye-icon {
+    color: var(--primary-purple);
+}
 .form-textarea {
     resize: vertical;
     min-height: 100px;
@@ -1015,6 +1080,7 @@ body {
         width: 100%;
         justify-content: stretch;
         gap: 0.5rem;
+        flex-wrap: wrap;
     }
     
     .event-actions .btn {
@@ -1022,6 +1088,14 @@ body {
         padding: 0.5rem 0.75rem;
         font-size: 0.8rem;
         text-align: center;
+        min-width: 0;
+        }
+        
+        .event-actions .btn-icon {
+            flex: 0 0 auto;
+            width: 40px;
+            height: 40px;
+            padding: 0.5rem;
     }
     
     /* Assignment groups responsive */
@@ -1214,11 +1288,23 @@ body {
     }
     
     .event-actions {
-        flex-direction: column;
+        flex-direction: row;
+            flex-wrap: wrap;
+            gap: 0.5rem;
     }
     
     .event-actions .btn {
-        width: 100%;
+        flex: 1;
+            min-width: 0;
+            margin-bottom: 0.25rem;
+            font-size: 0.75rem;
+            padding: 0.5rem 0.4rem;
+        }
+        
+        .event-actions .btn-icon {
+            flex: 0 0 auto;
+            width: 36px;
+            height: 36px;
         margin-bottom: 0.25rem;
     }
     
@@ -1253,6 +1339,10 @@ body {
         align-items: center;
     }
     
+        .event-actions .btn-icon {
+            width: 38px;
+            height: 38px;
+        }
 }
 
 /* Desktop enhancements */
