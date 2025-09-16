@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register - Worship Calendar</title>
+    {% load static %}
+    {% load form_tags %}
+    <link rel="stylesheet" href="{% static 'music_ministry/css/style.css' %}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-header">
+          <h1 class="auth-title">Join the Team</h1>
+          <p class="auth-subtitle">Create your worship calendar account</p>
+        </div>
+
+        {% if form.errors %}
+          <div class="alert alert-error">
+            {% for field, errors in form.errors.items %}
+              {% for error in errors %}
+                <p>{{ error }}</p>
+              {% endfor %}
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form method="post" class="auth-form">
+          {% csrf_token %}
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
+              {{ form.username|add_class:'form-input' }}
+            </div>
+
+            <div class="form-group">
+              <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+              {{ form.email|add_class:'form-input' }}
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label for="{{ form.name.id_for_label }}" class="form-label">Full Name</label>
+              {{ form.name|add_class:'form-input' }}
+            </div>
+
+            <div class="form-group">
+              <label for="{{ form.musician_role.id_for_label }}" class="form-label">Musician Role</label>
+              {{ form.musician_role|add_class:'form-input form-select' }}
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label for="{{ form.password1.id_for_label }}" class="form-label">Password</label>
+              {{ form.password1|add_class:'form-input' }}
+            </div>
+
+            <div class="form-group">
+              <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm Password</label>
+              {{ form.password2|add_class:'form-input' }}
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+        </form>
+
+        <div class="auth-footer">
+          <p>
+            Already have an account? <a href="{% url 'login' %}" class="auth-link">Sign in</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Auto-fade alerts
+      document.addEventListener('DOMContentLoaded', function () {
+        const alerts = document.querySelectorAll('.alert')
+      
+        alerts.forEach(function (alert) {
+          // Auto-hide after 5 seconds
+          setTimeout(function () {
+            fadeOutAlert(alert)
+          }, 5000)
+      
+          // Click to dismiss
+          alert.addEventListener('click', function () {
+            fadeOutAlert(alert)
+          })
+        })
+      
+        function fadeOutAlert(alert) {
+          alert.classList.add('fade-out')
+          setTimeout(function () {
+            if (alert.parentNode) {
+              alert.parentNode.removeChild(alert)
+            }
+          }, 500)
+        }
+      })
+    </script>
+  </body>
+</html>

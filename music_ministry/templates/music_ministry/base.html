@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      {% block title %}
+        JCSGO Arise Worship Team
+      {% endblock %}
+    </title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'music_ministry/css/style.css' %}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    {% if user.is_authenticated %}
+      <header class="header">
+        <div class="container">
+          <div class="header-content">
+            <a href="{% url 'dashboard' %}" class="logo">JCSGO Arise Worship Team</a>
+            <nav class="nav-menu"></nav>
+            <div class="user-menu">
+              <div class="user-avatar">{{ user.first_name|first|default:user.username|first|upper }}</div>
+              <span class="nav-link">{{ user.username }}</span>
+              {% if user.role == 'admin' %}
+                <span class="nav-link" style="color: var(--primary-purple); font-weight: 600;">Admin</span>
+              {% endif %}
+              <a href="{% url 'logout' %}" class="nav-link">
+                <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>Sign Out
+              </a>
+            </div>
+          </div>
+        </div>
+      </header>
+    {% endif %}
+
+    <main class="main-content">
+      <div class="container">
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+
+        {% block content %}
+
+        {% endblock %}
+      </div>
+    </main>
+
+    <script src="{% static 'music_ministry/js/calendar.js' %}"></script>
+    <script>
+      // Auto-fade alerts
+      document.addEventListener('DOMContentLoaded', function () {
+        const alerts = document.querySelectorAll('.alert')
+      
+        alerts.forEach(function (alert) {
+          // Auto-hide after 5 seconds
+          setTimeout(function () {
+            fadeOutAlert(alert)
+          }, 5000)
+      
+          // Click to dismiss
+          alert.addEventListener('click', function () {
+            fadeOutAlert(alert)
+          })
+        })
+      
+        function fadeOutAlert(alert) {
+          alert.classList.add('fade-out')
+          setTimeout(function () {
+            if (alert.parentNode) {
+              alert.parentNode.removeChild(alert)
+            }
+          }, 500)
+        }
+      })
+    </script>
+    {% block extra_js %}
+
+    {% endblock %}
+  </body>
+</html>

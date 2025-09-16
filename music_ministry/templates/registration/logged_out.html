@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logged Out - Worship Calendar</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'music_ministry/css/style.css' %}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-header">
+          <h1 class="auth-title">Logged Out</h1>
+          <p class="auth-subtitle">You have been successfully logged out</p>
+        </div>
+
+        <div style="text-align: center; margin: 2rem 0;">
+          <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--primary-purple); margin-bottom: 1rem;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p style="color: var(--text-gray);">Thank you for using the Worship Calendar!</p>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="{% url 'login' %}" class="btn btn-primary" style="width: 100%;">Sign In Again</a>
+        </div>
+
+        <div class="auth-footer">
+          <p>
+            Need to create an account? <a href="{% url 'register' %}" class="auth-link">Sign up</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      setTimeout(function () {
+        window.location.href = "{% url 'login' %}"
+      }, 3000)
+    </script>
+  </body>
+</html>

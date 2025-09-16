@@ -1,0 +1,298 @@
+{% extends 'music_ministry/base.html' %}
+
+{% block content %}
+  <div class="page-header">
+    <h1 class="page-title">Worship Calendar</h1>
+    <p class="page-subtitle">Organize your worship team schedules</p>
+  </div>
+
+  <div class="tabs-container">
+    <div class="tabs-nav">
+      <div class="tabs-buttons">
+        <button class="tab-button active" data-tab="calendar">
+          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>Calendar
+        </button>
+        <button class="tab-button" data-tab="events">
+          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>All Events
+        </button>
+      </div>
+      {% if user.role == 'admin' %}
+        <button id="addEventBtn" class="btn btn-primary">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>Add Event
+        </button>
+      {% endif %}
+    </div>
+
+    <div id="calendar" class="tab-content active">
+      <div class="calendar-container">
+        <div class="calendar-header">
+          <div class="calendar-nav">
+            <button id="prevMonth" class="calendar-nav-btn">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h2 id="monthYear" class="calendar-title">September 2025</h2>
+            <button id="nextMonth" class="calendar-nav-btn">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </div>
+    </div>
+
+    <div id="events" class="tab-content">
+      <!-- Date Filter -->
+      <div class="events-filter">
+        <div class="filter-group">
+          <label for="dateFilter" class="filter-label">Filter by Date:</label>
+          <div class="filter-controls">
+            <input type="date" id="dateFilter" class="filter-input" placeholder="Select date" />
+            <button id="clearFilter" class="btn btn-secondary btn-sm">Clear</button>
+            <button id="todayFilter" class="btn btn-secondary btn-sm">Today</button>
+          </div>
+        </div>
+        <div class="filter-results">
+          <span id="filterStatus" class="filter-status"></span>
+        </div>
+      </div>
+
+      <div class="events-list">
+        {% for event in events %}
+          <div class="event-item" data-event-date="{{ event.date|date:'Y-m-d' }}" data-event-title="{{ event.title|lower }}">
+            <div class="event-header">
+              <div>
+                <h3 class="event-title">{{ event.title }}</h3>
+                <div class="event-datetime">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {{ event.date|date:'F j, Y' }} • {{ event.start_time|time:'g:i A' }} - {{ event.end_time|time:'g:i A' }}
+                </div>
+              </div>
+              <div class="event-actions">
+                <button class="btn btn-secondary view-details-btn" data-event-id="{{ event.id }}">View Details</button>
+                {% if user.role == 'admin' %}
+                  <button class="btn btn-primary assign-members-btn" data-event-id="{{ event.id }}">Assign Members</button>
+                {% endif %}
+              </div>
+            </div>
+
+            {% if event.description %}
+              <p style="margin-top: 1rem; color: var(--text-gray);">{{ event.description }}</p>
+            {% endif %}
+
+            <div class="event-assignments">
+              {% regroup event.assignments.all by assigned_role as role_groups %}
+              {% for role_group in role_groups %}
+                <div class="assignment-group">
+                  <div class="assignment-role">{{ role_group.grouper|upper }}</div>
+                  <div class="assignment-members">
+                    {% for assignment in role_group.list %}
+                      <div class="assignment-member {% if assignment.is_backup %}assignment-backup{% endif %}">
+                        {{ assignment.member.name }}{% if assignment.is_backup %} (Backup){% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% empty %}
+          <div class="event-item" style="text-align: center; color: var(--text-gray);">
+            <p>No events scheduled yet.</p>
+            {% if user.role == 'admin' %}
+              <button id="addFirstEventBtn" class="btn btn-primary" style="margin-top: 1rem;">Add First Event</button>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if user.role == 'admin' %}
+    <div id="addEventModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Add Event for {{ selected_date|default:'Selected Date' }}</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <form action="{% url 'add_event' %}" method="post">
+          {% csrf_token %}
+          <div class="form-group">
+            <label class="form-label">Event Title</label>
+            <input type="text" name="title" class="form-input" placeholder="Sunday Service" required />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input type="date" name="date" id="eventDate" class="form-input" required />
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label class="form-label">Start Time</label>
+                <input type="time" name="start_time" class="form-input" value="09:00" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">End Time</label>
+                <input type="time" name="end_time" class="form-input" value="11:00" required />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Worship Leaders</label>
+            <select name="worship_leaders" class="form-input form-select" multiple size="3">
+              {% for leader in worship_leaders %}
+                <option value="{{ leader.id }}">{{ leader.name }}</option>
+              {% endfor %}
+            </select>
+            <small style="color: var(--text-gray); font-size: 0.875rem;">Hold Ctrl/Cmd to select multiple</small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Backup Worship Leaders</label>
+            <select name="backup_worship_leaders" class="form-input form-select" multiple size="3">
+              {% for leader in worship_leaders %}
+                <option value="{{ leader.id }}">{{ leader.name }}</option>
+              {% endfor %}
+            </select>
+            <small style="color: var(--text-gray); font-size: 0.875rem;">Hold Ctrl/Cmd to select multiple</small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Guitarists</label>
+            <select name="guitarists" class="form-input form-select" multiple size="3">
+              {% for guitarist in guitarists %}
+                <option value="{{ guitarist.id }}">{{ guitarist.name }}</option>
+              {% endfor %}
+            </select>
+            <small style="color: var(--text-gray); font-size: 0.875rem;">Hold Ctrl/Cmd to select multiple</small>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label">Keys Player</label>
+              <select name="keys_player" class="form-input form-select">
+                <option value="">Select keys player</option>
+                {% for keys in keys_players %}
+                  <option value="{{ keys.id }}">{{ keys.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Bassist</label>
+              <select name="bass_player" class="form-input form-select">
+                <option value="">Select bassist</option>
+                {% for bassist in bassists %}
+                  <option value="{{ bassist.id }}">{{ bassist.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Drummer</label>
+              <select name="drummer" class="form-input form-select">
+                <option value="">Select drummer</option>
+                {% for drummer in drummers %}
+                  <option value="{{ drummer.id }}">{{ drummer.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-buttons">
+            <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Event</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Assign Members Modal -->
+  {% if user.role == 'admin' %}
+    <div id="assignMembersModal" class="modal">
+      <div class="modal-content">
+        <h2>Assign Members</h2>
+        <p id="assignEventTitle" style="color: var(--text-gray); margin-bottom: 2rem;"></p>
+
+        <form id="assignMembersForm" method="post" action="">
+          {% csrf_token %}
+          <input type="hidden" id="assignEventId" name="event_id" value="" />
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Worship Leaders</label>
+              <select name="worship_leaders" class="form-input form-select" multiple size="3">
+                {% for wl in worship_leaders %}
+                  <option value="{{ wl.id }}">{{ wl.name }}</option>
+                {% endfor %}
+              </select>
+              <small style="color: var(--text-gray);">Hold Ctrl/Cmd to select multiple</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Backup Worship Leaders</label>
+              <select name="backup_worship_leaders" class="form-input form-select" multiple size="3">
+                {% for wl in worship_leaders %}
+                  <option value="{{ wl.id }}">{{ wl.name }}</option>
+                {% endfor %}
+              </select>
+              <small style="color: var(--text-gray);">Hold Ctrl/Cmd to select multiple</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Guitarists</label>
+              <select name="guitarists" class="form-input form-select" multiple size="3">
+                {% for guitarist in guitarists %}
+                  <option value="{{ guitarist.id }}">{{ guitarist.name }}</option>
+                {% endfor %}
+              </select>
+              <small style="color: var(--text-gray);">Hold Ctrl/Cmd to select multiple</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Keys Player</label>
+              <select name="keys_player" class="form-input form-select">
+                <option value="">Select keys player</option>
+                {% for keys in keys_players %}
+                  <option value="{{ keys.id }}">{{ keys.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Bass Player</label>
+              <select name="bass_player" class="form-input form-select">
+                <option value="">Select bassist</option>
+                {% for bassist in bassists %}
+                  <option value="{{ bassist.id }}">{{ bassist.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Drummer</label>
+              <select name="drummer" class="form-input form-select">
+                <option value="">Select drummer</option>
+                {% for drummer in drummers %}
+                  <option value="{{ drummer.id }}">{{ drummer.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-buttons">
+            <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Assignments</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
