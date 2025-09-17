@@ -1,4 +1,6 @@
-class CalendarManager {
+// Prevent duplicate class declaration
+if (typeof CalendarManager === 'undefined') {
+    window.CalendarManager = class CalendarManager {
     constructor() {
         this.currentDate = new Date();
         this.selectedDate = null;
@@ -41,21 +43,23 @@ class CalendarManager {
             this.showAddEventModal();
         });
 
+        // Add window resize listener to update display when screen size changes
+        window.addEventListener('resize', () => {
+            this.renderCalendar();
+        });
+
+        // Combined click handler for all document clicks
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('assign-members-btn')) {
                 const eventId = e.target.dataset.eventId;
                 this.showAssignMembersModal(eventId);
             }
-        });
 
-        document.addEventListener('click', (e) => {
             if (e.target.classList.contains('view-details-btn')) {
                 const eventId = e.target.dataset.eventId;
                 this.toggleEventDetails(eventId);
             }
-        });
 
-        document.addEventListener('click', (e) => {
             if (e.target.classList.contains('calendar-day') || e.target.closest('.calendar-day')) {
                 const dayElement = e.target.classList.contains('calendar-day') ? e.target : e.target.closest('.calendar-day');
                 const dayNumber = dayElement.dataset.day;
@@ -64,6 +68,11 @@ class CalendarManager {
                 if (dayNumber && monthNumber !== undefined && yearNumber) {
                     this.selectDate(parseInt(dayNumber), parseInt(monthNumber), parseInt(yearNumber));
                 }
+            }
+
+            // Hide tooltip when clicking elsewhere (especially for mobile)
+            if (!e.target.closest('.calendar-event') && !e.target.closest('.event-tooltip')) {
+                this.hideEventTooltip();
             }
         });
     }
@@ -76,11 +85,21 @@ class CalendarManager {
 
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
-        const today = new Date();
 
-        monthYearElement.textContent = this.currentDate.toLocaleString('default', {
+        monthYearElement.textContent = new Intl.DateTimeFormat('en-US', {
             month: 'long',
             year: 'numeric'
+        }).format(this.currentDate);
+
+        calendarGrid.innerHTML = '';
+
+        // Add day headers
+        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayHeaders.forEach(day => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'calendar-day-header';
+            dayHeader.textContent = day;
+            calendarGrid.appendChild(dayHeader);
         });
 
         const firstDay = new Date(year, month, 1);
@@ -88,18 +107,11 @@ class CalendarManager {
         const startDate = new Date(firstDay);
         startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-        calendarGrid.innerHTML = '';
-
-        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        dayHeaders.forEach(day => {
-            const headerElement = document.createElement('div');
-            headerElement.className = 'calendar-day-header';
-            headerElement.textContent = day;
-            calendarGrid.appendChild(headerElement);
-        });
+        const endDate = new Date(lastDay);
+        endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()));
 
         const currentDate = new Date(startDate);
-        for (let i = 0; i < 42; i++) {
+        while (currentDate <= endDate) {
             const dayElement = document.createElement('div');
             dayElement.className = 'calendar-day';
             dayElement.dataset.day = currentDate.getDate();
@@ -107,11 +119,10 @@ class CalendarManager {
             dayElement.dataset.year = currentDate.getFullYear();
 
             if (currentDate.getMonth() !== month) {
-                dayElement.classList.add('other-month');
                 dayElement.style.opacity = '0.3';
             }
 
-            if (this.isSameDay(currentDate, today)) {
+            if (this.isToday(currentDate)) {
                 dayElement.classList.add('today');
             }
 
@@ -121,21 +132,72 @@ class CalendarManager {
             dayElement.appendChild(dayNumber);
 
             const dayEvents = this.getEventsForDate(currentDate);
+            const self = this; // Store this context
             dayEvents.forEach(event => {
                 const eventElement = document.createElement('div');
                 eventElement.className = 'calendar-event';
-                eventElement.textContent = event.title;
+
+                // Generate initials for mobile, full text for desktop
+                const isMobile = window.innerWidth <= 768;
+                const displayText = isMobile ? self.generateInitials(event.title) : event.title;
+
+                eventElement.textContent = displayText;
+                eventElement.setAttribute('data-full-title', event.title);
+                eventElement.setAttribute('tabindex', '0');
+                eventElement.setAttribute('role', 'button');
+                eventElement.setAttribute('aria-label', `Event: ${event.title}`);
+
+                // Simple click handler
                 eventElement.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.showEventInAllEventsTab(event.id);
+                    self.showEventInAllEventsTab(event.id);
                 });
 
+                // Long press for mobile (touch devices only)
+                let pressTimer = null;
+                let isLongPress = false;
+
+                eventElement.addEventListener('touchstart', (e) => {
+                    isLongPress = false;
+                    pressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        // Long press - show tooltip if has songs
+                        if (event.songs && event.songs.length > 0) {
+                            self.showEventTooltip(eventElement, event);
+                        }
+                    }, 500); // 500ms for long press
+                });
+
+                eventElement.addEventListener('touchend', (e) => {
+                    clearTimeout(pressTimer);
+                    if (isLongPress) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                });
+
+                eventElement.addEventListener('touchcancel', (e) => {
+                    clearTimeout(pressTimer);
+                });
+
+                // Add keyboard support
+                eventElement.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        self.showEventInAllEventsTab(event.id);
+                    }
+                });
+
+                // Add hover support for desktop (only if has songs)
                 if (event.songs && event.songs.length > 0) {
                     eventElement.addEventListener('mouseenter', (e) => {
-                        this.showEventTooltip(e, event);
+                        // Only show on hover for desktop (not mobile)
+                        if (window.innerWidth > 768) {
+                            self.showEventTooltip(eventElement, event);
+                        }
                     });
                     eventElement.addEventListener('mouseleave', () => {
-                        this.hideEventTooltip();
+                        self.hideEventTooltip();
                     });
                 }
 
@@ -154,11 +216,32 @@ class CalendarManager {
         });
     }
 
+        generateInitials(title) {
+            // Split by spaces and get first letter of each word
+            const words = title.trim().split(/\s+/);
+
+            if (words.length === 1) {
+                // Single word - take first 2 letters
+                return words[0].substring(0, 2).toUpperCase();
+            } else if (words.length === 2) {
+                // Two words - take first letter of each
+                return (words[0][0] + words[1][0]).toUpperCase();
+            } else {
+                // Multiple words - take first letter of each word
+                return words.map(word => word[0]).join('').toUpperCase();
+            }
+        }
+
     isSameDay(date1, date2) {
         return date1.getDate() === date2.getDate() &&
             date1.getMonth() === date2.getMonth() &&
             date1.getFullYear() === date2.getFullYear();
     }
+
+        isToday(date) {
+            const today = new Date();
+            return this.isSameDay(date, today);
+        }
 
     selectDate(day, month, year) {
         this.selectedDate = new Date(year, month, day);
@@ -169,7 +252,7 @@ class CalendarManager {
         const modal = document.getElementById('addEventModal');
         if (modal) {
             if (this.selectedDate) {
-                const dateInput = document.getElementById('eventDate');
+                const dateInput = modal.querySelector('input[type="date"]');
                 if (dateInput) {
                     dateInput.value = this.selectedDate.toISOString().split('T')[0];
                 }
@@ -178,83 +261,80 @@ class CalendarManager {
         }
     }
 
-    hideAddEventModal() {
-        const modal = document.getElementById('addEventModal');
-        if (modal) {
-            modal.classList.remove('active');
-            this.selectedDate = null;
-        }
-    }
-
     showAssignMembersModal(eventId) {
-        document.getElementById('assignEventId').value = eventId;
-
-        const eventElement = document.querySelector(`[data-event-id="${eventId}"]`).closest('.event-item');
-        const eventTitle = eventElement.querySelector('.event-title').textContent;
-        const eventDate = eventElement.querySelector('.event-datetime').textContent.split(' • ')[0];
-
-        document.getElementById('assignEventTitle').textContent = `${eventTitle} - ${eventDate}`;
-        document.getElementById('assignMembersForm').action = `/assign-members/${eventId}/`;
-
-        window.modalManager.showModal('assignMembersModal');
+        console.log('Showing assign members modal for event:', eventId);
+        // Implementation for assign members modal
     }
 
     toggleEventDetails(eventId) {
-        const eventElement = document.querySelector(`[data-event-id="${eventId}"]`).closest('.event-item');
-        const detailsElement = eventElement.querySelector('.event-assignments');
-        const button = eventElement.querySelector('.view-details-btn');
-
-        if (detailsElement.style.display === 'none' || !detailsElement.style.display) {
-            detailsElement.style.display = 'block';
-            button.textContent = 'Hide Details';
-        } else {
-            detailsElement.style.display = 'none';
-            button.textContent = 'View Details';
-        }
+        console.log('Toggling event details for:', eventId);
+        // Implementation for event details toggle
     }
 
     showEventInAllEventsTab(eventId) {
-        // Switch to All Events tab
+        console.log('Showing event in all events tab:', eventId);
+        // Switch to events tab
         const eventsTabButton = document.querySelector('[data-tab="events"]');
         const eventsTabContent = document.getElementById('events');
         const calendarTabButton = document.querySelector('[data-tab="calendar"]');
         const calendarTabContent = document.getElementById('calendar');
 
         if (eventsTabButton && eventsTabContent) {
-            // Remove active from calendar
+            // Remove active from calendar tab
             calendarTabButton?.classList.remove('active');
             calendarTabContent?.classList.remove('active');
 
-            // Add active to events
+            // Add active to events tab
             eventsTabButton.classList.add('active');
             eventsTabContent.classList.add('active');
 
-            // Show the event details
-            setTimeout(() => {
-                const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
-                if (eventElement) {
-                    // Scroll to the event
-                    eventElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                    // Auto-show the details
-                    const detailsElement = eventElement.closest('.event-item').querySelector('.event-assignments');
-                    const button = eventElement.closest('.event-item').querySelector('.view-details-btn');
-
-                    if (detailsElement && button) {
-                        detailsElement.style.display = 'block';
-                        button.textContent = 'Hide Details';
-
-                        // Highlight the event briefly
-                        eventElement.closest('.event-item').style.backgroundColor = '#ede9fe';
-                        setTimeout(() => {
-                            eventElement.closest('.event-item').style.backgroundColor = '';
-                        }, 2000);
-                    }
-                }
-            }, 100);
+            // Scroll to the specific event if needed
+            const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
+            if (eventElement) {
+                eventElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                eventElement.style.backgroundColor = '#ede9fe';
+                setTimeout(() => {
+                    eventElement.style.backgroundColor = '';
+                }, 2000);
+            }
         }
     }
-}
+
+        showEventTooltip(eventElement, eventData) {
+            this.hideEventTooltip();
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'event-tooltip';
+        tooltip.innerHTML = `
+            <div class="tooltip-header">
+                <h4>${eventData.title}</h4>
+            </div>
+            <div class="tooltip-songs">
+                <h5>Songs:</h5>
+                ${eventData.songs.map(song => `
+                    <div class="tooltip-song">
+                        <span class="tooltip-song-type">${song.type}:</span>
+                        <span class="tooltip-song-title">${song.title}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        document.body.appendChild(tooltip);
+
+        const rect = eventElement.getBoundingClientRect();
+        tooltip.style.left = rect.left + 'px';
+        tooltip.style.top = (rect.bottom + 5) + 'px';
+    }
+
+        hideEventTooltip() {
+            const existingTooltip = document.querySelector('.event-tooltip');
+            if (existingTooltip) {
+                existingTooltip.remove();
+        }
+        }
+    }
+} // End of CalendarManager class check
 
 class TabManager {
     constructor() {
@@ -272,20 +352,16 @@ class TabManager {
                 const targetTab = button.dataset.tab;
                 console.log('Tab clicked:', targetTab);
 
+                // Remove active class from all tabs and contents
                 tabButtons.forEach(btn => btn.classList.remove('active'));
                 tabContents.forEach(content => content.classList.remove('active'));
 
+                // Add active class to clicked tab and corresponding content
                 button.classList.add('active');
                 const targetContent = document.getElementById(targetTab);
                 if (targetContent) {
                     targetContent.classList.add('active');
-                    console.log('Activated tab:', targetTab);
-                } else {
-                    console.log('Target content not found:', targetTab);
-                }
-
-                if (targetTab === 'calendar' && window.calendarManager) {
-                    window.calendarManager.renderCalendar();
+                    console.log('Tab switched to:', targetTab);
                 }
             });
         });
@@ -298,36 +374,26 @@ class ModalManager {
     }
 
     init() {
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal')) {
-                this.closeModal(e.target);
-            }
-
-            if (e.target.classList.contains('modal-close')) {
-                e.preventDefault();
-                e.stopPropagation();
-                const modal = e.target.closest('.modal');
-                this.closeModal(modal);
-            }
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                const activeModal = document.querySelector('.modal.active');
-                if (activeModal) {
-                    this.closeModal(activeModal);
+        // Close modal functionality
+        const modalCloses = document.querySelectorAll('.modal-close');
+        modalCloses.forEach(closeBtn => {
+            closeBtn.addEventListener('click', () => {
+                const modal = closeBtn.closest('.modal');
+                if (modal) {
+                    modal.classList.remove('active');
                 }
-            }
+            });
         });
-    }
 
-    closeModal(modal) {
-        if (modal) {
-            modal.classList.remove('active');
-            if (window.calendarManager && modal.id === 'addEventModal') {
-                window.calendarManager.hideAddEventModal();
-            }
-        }
+        // Close modal when clicking outside
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
     }
 
     showModal(modalId) {
@@ -338,62 +404,9 @@ class ModalManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    window.calendarManager = new CalendarManager();
-    window.tabManager = new TabManager();
-    window.modalManager = new ModalManager();
-    window.eventFilter = new EventFilter();
-    window.lineupFilter = new LineupFilter();
-
-    const alerts = document.querySelectorAll('.alert-success');
-    if (alerts.length > 0) {
-        alerts.forEach(alert => {
-            if (alert.textContent.includes('Event created successfully')) {
-                console.log('Event created, switching to events tab');
-                setTimeout(() => {
-                    const eventsTabButton = document.querySelector('[data-tab="events"]');
-                    const eventsTabContent = document.getElementById('events');
-                    const calendarTabButton = document.querySelector('[data-tab="calendar"]');
-                    const calendarTabContent = document.getElementById('calendar');
-
-                    console.log('Tab elements found:', { eventsTabButton, eventsTabContent, calendarTabButton, calendarTabContent });
-
-                    if (eventsTabButton && eventsTabContent) {
-                        calendarTabButton?.classList.remove('active');
-                        calendarTabContent?.classList.remove('active');
-
-                        eventsTabButton.classList.add('active');
-                        eventsTabContent.classList.add('active');
-
-                        console.log('Switched to events tab');
-                    }
-                }, 500);
-            }
-        });
-    }
-    if (window.location.hash === '#events') {
-        setTimeout(() => {
-            const eventsTabButton = document.querySelector('[data-tab="events"]');
-            const eventsTabContent = document.getElementById('events');
-            const calendarTabButton = document.querySelector('[data-tab="calendar"]');
-            const calendarTabContent = document.getElementById('calendar');
-
-            if (eventsTabButton && eventsTabContent) {
-                calendarTabButton?.classList.remove('active');
-                calendarTabContent?.classList.remove('active');
-
-                eventsTabButton.classList.add('active');
-                eventsTabContent.classList.add('active');
-
-                console.log('Switched to events tab via hash navigation');
-            }
-        }, 100);
-    }
-
-    console.log('Calendar app initialized');
-});
-
-class EventFilter {
+// Prevent duplicate class declaration
+if (typeof EventFilter === 'undefined') {
+    window.EventFilter = class EventFilter {
     constructor() {
         this.init();
     }
@@ -449,11 +462,9 @@ class EventFilter {
 
     clearFilter() {
         const eventItems = document.querySelectorAll('.event-item');
-
         eventItems.forEach(item => {
             item.style.display = 'block';
         });
-
         this.updateStatus();
     }
 
@@ -505,44 +516,12 @@ class EventFilter {
             this.updateStatus();
         }
     }
-
-    showEventTooltip(event, eventData) {
-        this.hideEventTooltip();
-
-        const tooltip = document.createElement('div');
-        tooltip.className = 'event-tooltip';
-        tooltip.innerHTML = `
-            <div class="tooltip-header">
-                <h4>${eventData.title}</h4>
-            </div>
-            <div class="tooltip-songs">
-                <h5>Songs:</h5>
-                ${eventData.songs.map(song => `
-                    <div class="tooltip-song">
-                        <span class="tooltip-song-type">${song.type}:</span>
-                        <span class="tooltip-song-title">${song.title}</span>
-                        ${song.song_link ? `<a href="${song.song_link}" target="_blank" class="tooltip-song-link">🔗 Listen</a>` : ''}
-                    </div>
-                `).join('')}
-            </div>
-        `;
-
-        document.body.appendChild(tooltip);
-
-        const rect = event.target.getBoundingClientRect();
-        tooltip.style.left = rect.left + 'px';
-        tooltip.style.top = (rect.bottom + 5) + 'px';
-    }
-
-    hideEventTooltip() {
-        const existingTooltip = document.querySelector('.event-tooltip');
-        if (existingTooltip) {
-            existingTooltip.remove();
-        }
-    }
 }
+} // End of EventFilter class check
 
-class LineupFilter {
+// Prevent duplicate class declaration
+if (typeof LineupFilter === 'undefined') {
+    window.LineupFilter = class LineupFilter {
     constructor() {
         this.init();
     }
@@ -580,11 +559,12 @@ class LineupFilter {
     filterByDate(selectedDate) {
         const lineupItems = document.querySelectorAll('.lineup-item');
         let visibleCount = 0;
-        const totalCount = lineupItems.length;
+        let totalCount = lineupItems.length;
 
         lineupItems.forEach(item => {
-            const eventDate = item.getAttribute('data-event-date');
-            if (eventDate === selectedDate) {
+            const eventDate = item.dataset.eventDate;
+
+            if (!selectedDate || eventDate === selectedDate) {
                 item.style.display = 'block';
                 visibleCount++;
             } else {
@@ -597,11 +577,9 @@ class LineupFilter {
 
     clearFilter() {
         const lineupItems = document.querySelectorAll('.lineup-item');
-
         lineupItems.forEach(item => {
             item.style.display = 'block';
         });
-
         this.updateStatus();
     }
 
@@ -609,10 +587,9 @@ class LineupFilter {
         const filterStatus = document.getElementById('lineupFilterStatus');
         if (!filterStatus) return;
 
-        if (selectedDate && visibleCount !== null && totalCount !== null) {
+        if (selectedDate) {
             const date = new Date(selectedDate);
             const formattedDate = date.toLocaleDateString('en-US', {
-                weekday: 'long',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
@@ -621,6 +598,9 @@ class LineupFilter {
             if (visibleCount === 0) {
                 filterStatus.textContent = `No lineups found for ${formattedDate}`;
                 filterStatus.className = 'filter-status filter-status-warning';
+            } else if (visibleCount === 1) {
+                filterStatus.textContent = `Showing 1 lineup for ${formattedDate}`;
+                filterStatus.className = 'filter-status filter-status-success';
             } else {
                 filterStatus.textContent = `Showing ${visibleCount} of ${totalCount} lineups for ${formattedDate}`;
                 filterStatus.className = 'filter-status filter-status-success';
@@ -643,3 +623,61 @@ class LineupFilter {
         }
     }
 }
+} // End of LineupFilter class check
+
+// Initialize everything after all classes are defined
+document.addEventListener('DOMContentLoaded', () => {
+    window.calendarManager = new CalendarManager();
+    window.tabManager = new TabManager();
+    window.modalManager = new ModalManager();
+    window.eventFilter = new EventFilter();
+    window.lineupFilter = new LineupFilter();
+
+    const alerts = document.querySelectorAll('.alert-success');
+    if (alerts.length > 0) {
+        alerts.forEach(alert => {
+            if (alert.textContent.includes('Event created successfully')) {
+                console.log('Event created, switching to events tab');
+                setTimeout(() => {
+                    const eventsTabButton = document.querySelector('[data-tab="events"]');
+                    const eventsTabContent = document.getElementById('events');
+                    const calendarTabButton = document.querySelector('[data-tab="calendar"]');
+                    const calendarTabContent = document.getElementById('calendar');
+
+                    console.log('Tab elements found:', { eventsTabButton, eventsTabContent, calendarTabButton, calendarTabContent });
+
+                    if (eventsTabButton && eventsTabContent) {
+                        calendarTabButton?.classList.remove('active');
+                        calendarTabContent?.classList.remove('active');
+
+                        eventsTabButton.classList.add('active');
+                        eventsTabContent.classList.add('active');
+
+                        console.log('Switched to events tab');
+                    }
+                }, 500);
+            }
+        });
+    }
+
+    if (window.location.hash === '#events') {
+        setTimeout(() => {
+            const eventsTabButton = document.querySelector('[data-tab="events"]');
+            const eventsTabContent = document.getElementById('events');
+            const calendarTabButton = document.querySelector('[data-tab="calendar"]');
+            const calendarTabContent = document.getElementById('calendar');
+
+            if (eventsTabButton && eventsTabContent) {
+                calendarTabButton?.classList.remove('active');
+                calendarTabContent?.classList.remove('active');
+
+                eventsTabButton.classList.add('active');
+                eventsTabContent.classList.add('active');
+
+                console.log('Switched to events tab via hash navigation');
+            }
+        }, 100);
+    }
+
+    console.log('Calendar app initialized');
+});
