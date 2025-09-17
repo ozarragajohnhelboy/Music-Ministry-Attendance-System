@@ -55,10 +55,11 @@ if (typeof CalendarManager === 'undefined') {
                 this.showAssignMembersModal(eventId);
             }
 
-            if (e.target.classList.contains('view-details-btn')) {
-                const eventId = e.target.dataset.eventId;
-                this.toggleEventDetails(eventId);
-            }
+            // Note: view-details-btn is now handled directly in dashboard.html
+            // if (e.target.classList.contains('view-details-btn')) {
+            //     const eventId = e.target.dataset.eventId;
+            //     this.toggleEventDetails(eventId);
+            // }
 
             if (e.target.classList.contains('calendar-day') || e.target.closest('.calendar-day')) {
                 const dayElement = e.target.classList.contains('calendar-day') ? e.target : e.target.closest('.calendar-day');
@@ -263,12 +264,60 @@ if (typeof CalendarManager === 'undefined') {
 
     showAssignMembersModal(eventId) {
         console.log('Showing assign members modal for event:', eventId);
-        // Implementation for assign members modal
+
+        // Find the modal and form elements
+        const modal = document.getElementById('assignMembersModal');
+        const eventIdInput = document.getElementById('assignEventId');
+        const form = document.getElementById('assignMembersForm');
+
+        if (!modal || !eventIdInput || !form) {
+            console.warn('Could not find assign members modal elements');
+            return;
+        }
+
+        // Set the event ID in the form
+        eventIdInput.value = eventId;
+
+        // Update the form action URL
+        form.action = `/event/${eventId}/assign/`;
+
+        // Show the modal
+        modal.classList.add('active');
+
+        // Optional: Find and display the event title
+        const eventTitle = document.getElementById('assignEventTitle');
+        if (eventTitle) {
+            const eventItem = document.querySelector(`[data-event-id="${eventId}"]`).closest('.event-item');
+            const titleElement = eventItem?.querySelector('.event-title');
+            if (titleElement) {
+                eventTitle.textContent = `Assigning members to: ${titleElement.textContent}`;
+            }
+        }
     }
 
     toggleEventDetails(eventId) {
-        console.log('Toggling event details for:', eventId);
-        // Implementation for event details toggle
+        // Note: This method is kept for compatibility but the main functionality
+        // is now handled directly in dashboard.html for better reliability
+        console.log('toggleEventDetails called with eventId:', eventId);
+
+        const eventItem = document.querySelector(`[data-event-id="${eventId}"]`).closest('.event-item');
+        const assignmentsSection = eventItem?.querySelector('.event-assignments');
+        const toggleButton = eventItem?.querySelector('.view-details-btn');
+
+        if (!assignmentsSection || !toggleButton) {
+            console.warn('Could not find assignments section or button for event:', eventId);
+            return;
+        }
+
+        const isCurrentlyHidden = assignmentsSection.classList.contains('hidden');
+
+        if (isCurrentlyHidden) {
+            assignmentsSection.classList.remove('hidden');
+            toggleButton.textContent = 'Hide Details';
+        } else {
+            assignmentsSection.classList.add('hidden');
+            toggleButton.textContent = 'View Details';
+        }
     }
 
     showEventInAllEventsTab(eventId) {

@@ -102,7 +102,7 @@
               <p style="margin-top: 1rem; color: var(--text-gray);">{{ event.description }}</p>
             {% endif %}
 
-            <div class="event-assignments">
+            <div class="event-assignments hidden">
               {% regroup event.assignments.all by assigned_role as role_groups %}
               {% for role_group in role_groups %}
                 <div class="assignment-group">
@@ -513,6 +513,38 @@
       window.calendarManager = new CalendarManager();
       window.eventFilter = new EventFilter();
       window.lineupFilter = new LineupFilter();
+      
+      // Direct event listener for view details buttons
+      const viewDetailsButtons = document.querySelectorAll('.view-details-btn');
+      viewDetailsButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+          e.preventDefault();
+          const eventId = this.dataset.eventId;
+          toggleEventDetails(eventId);
+        });
+      });
     });
+    
+    // Simple standalone function for toggling event details
+    function toggleEventDetails(eventId) {
+      const eventItem = document.querySelector(`[data-event-id="${eventId}"]`).closest('.event-item');
+      const assignmentsSection = eventItem?.querySelector('.event-assignments');
+      const toggleButton = eventItem?.querySelector('.view-details-btn');
+      
+      if (!assignmentsSection || !toggleButton) {
+        console.warn('Could not find elements for event:', eventId);
+        return;
+      }
+      
+      const isCurrentlyHidden = assignmentsSection.classList.contains('hidden');
+      
+      if (isCurrentlyHidden) {
+        assignmentsSection.classList.remove('hidden');
+        toggleButton.textContent = 'Hide Details';
+      } else {
+        assignmentsSection.classList.add('hidden');
+        toggleButton.textContent = 'View Details';
+      }
+    }
   </script>
 {% endblock %}

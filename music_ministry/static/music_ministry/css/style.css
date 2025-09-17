@@ -643,6 +643,13 @@ body {
 }
 
 .event-assignments {
+    display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .event-assignments.hidden {
     display: none;
 }
 
@@ -659,13 +666,6 @@ body {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-}
-
-.event-assignments {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
 }
 
 .assignment-group {
