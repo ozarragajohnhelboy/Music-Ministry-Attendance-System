@@ -1,0 +1,61 @@
+{% extends 'music_ministry/base.html' %}
+
+{% block content %}
+  <div class="page-header">
+    <h1 class="page-title">Review Lineup</h1>
+    <p class="page-subtitle">{{ event.title }} - {{ event.date|date:'F j, Y' }}</p>
+  </div>
+
+  <div class="form-container">
+    <div class="lineup-review">
+      <div class="lineup-info">
+        <h3>Lineup Details</h3>
+        <p>
+          <strong>Set List Type:</strong> {{ lineup.get_set_list_type_display }}
+        </p>
+        <p>
+          <strong>Created by:</strong> {{ lineup.created_by.name }}
+        </p>
+        <p>
+          <strong>Created on:</strong> {{ lineup.created_at|date:'F j, Y g:i A' }}
+        </p>
+        <p>
+          <strong>Current Status:</strong> <span class="lineup-status lineup-status-{{ lineup.status }}">{{ lineup.get_status_display }}</span>
+        </p>
+      </div>
+
+      <div class="lineup-songs">
+        <h3>Songs</h3>
+        <div class="songs-list">
+          {% for song in lineup.songs.all %}
+            <div class="song-item">
+              <span class="song-type">{{ song.get_song_type_display }}</span>
+              <span class="song-title">{{ song.title }}</span>
+              {% if song.song_link %}
+                <a href="{{ song.song_link }}" target="_blank" class="song-link">🔗 Listen</a>
+              {% endif %}
+            </div>
+          {% empty %}
+            <div class="song-item">
+              <p style="color: var(--text-gray); font-style: italic;">No songs have been added to this lineup yet.</p>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <form method="post" class="approval-form">
+        {% csrf_token %}
+
+        <div class="form-group">
+          <label class="form-label">Update Status</label>
+          {{ form.status }}
+        </div>
+
+        <div class="form-actions">
+          <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+          <button type="submit" class="btn btn-primary">Update Status</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

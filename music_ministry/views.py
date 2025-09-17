@@ -9,8 +9,8 @@ from django.db import transaction
 from datetime import datetime, date
 import json
 
-from .models import User, Member, Event, EventAssignment
-from .forms import CustomUserCreationForm, EventForm, EventAssignmentForm
+from .models import User, Member, Event, EventAssignment, Lineup, Song
+from .forms import CustomUserCreationForm, EventForm, EventAssignmentForm, LineupForm, SongForm, LineupApprovalForm
 
 
 def is_admin(user):
@@ -43,17 +43,35 @@ def logout_view(request):
 
 @login_required
 def dashboard(request):
-    # All users can see all events (view access)
     events = Event.objects.all().order_by('date', 'start_time')
     upcoming_events = Event.objects.filter(date__gte=date.today()).order_by('date', 'start_time')[:5]
     
-    # Get members by role for the modal
     worship_leaders = Member.objects.filter(musician_role='worship_leader', is_active=True)
     guitarists = Member.objects.filter(musician_role='guitarist', is_active=True)
     keys_players = Member.objects.filter(musician_role='keys', is_active=True)
     drummers = Member.objects.filter(musician_role='drummer', is_active=True)
     bassists = Member.objects.filter(musician_role='bassist', is_active=True)
     vocalists = Member.objects.filter(musician_role='vocalist', is_active=True)
+    
+    current_member = None
+    if hasattr(request.user, 'member'):
+        current_member = request.user.member
+    
+    events_with_lineups = []
+    for event in events:
+        lineup = getattr(event, 'lineup', None)
+        can_edit = False
+        
+        if current_member and event.assignments.filter(member=current_member).exists():
+            can_edit = True
+        elif request.user.role == 'admin':
+            can_edit = True
+        
+        events_with_lineups.append({
+            'event': event,
+            'lineup': lineup,
+            'can_edit': can_edit
+        })
     
     return render(request, 'music_ministry/dashboard.html', {
         'events': events,
@@ -64,6 +82,7 @@ def dashboard(request):
         'drummers': drummers,
         'bassists': bassists,
         'vocalists': vocalists,
+        'events_with_lineups': events_with_lineups,
     })
 
 
@@ -264,16 +283,232 @@ def delete_event(request, event_id):
 @login_required
 @require_http_methods(["GET"])
 def api_events(request):
-    # All users can see all events in calendar
     events = Event.objects.all()
     
     events_data = []
     for event in events:
-        events_data.append({
+        event_data = {
             'id': event.id,
             'title': event.title,
             'start': f"{event.date}T{event.start_time}",
             'end': f"{event.date}T{event.end_time}"
-        })
+        }
+        
+        if hasattr(event, 'lineup') and event.lineup.status == 'approved':
+            songs = event.lineup.songs.all()
+            if songs:
+                event_data['songs'] = []
+                for song in songs:
+                    event_data['songs'].append({
+                        'type': song.get_song_type_display(),
+                        'title': song.title,
+                        'song_link': song.song_link
+                    })
+        
+        events_data.append(event_data)
     
     return JsonResponse(events_data, safe=False)
+
+
+@login_required
+def lineups_view(request):
+    return redirect('dashboard')
+
+
+@login_required
+def create_lineup(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    current_member = get_object_or_404(Member, user=request.user)
+    
+    if not event.assignments.filter(member=current_member).exists() and request.user.role != 'admin':
+        messages.error(request, 'You are not assigned to this event.')
+        return redirect('dashboard')
+    
+    if hasattr(event, 'lineup'):
+        messages.info(request, 'This event already has a lineup.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        set_list_type = request.POST.get('set_list_type')
+        
+        if not set_list_type:
+            messages.error(request, 'Please select a set list type.')
+            return render(request, 'music_ministry/create_lineup.html', {
+                'event': event,
+                'form': LineupForm()
+            })
+        
+        with transaction.atomic():
+            lineup = Lineup.objects.create(
+                event=event,
+                set_list_type=set_list_type,
+                created_by=current_member
+            )
+            
+            songs_created = 0
+            
+            song_data = {
+                '1p1w1f': [
+                    ('praise', 1), ('worship', 2), ('fellowship', 3)
+                ],
+                '2p1w1f': [
+                    ('praise', 1), ('high_praise', 2), ('worship', 3), ('fellowship', 4)
+                ],
+                '2p2w1f': [
+                    ('praise', 1), ('high_praise', 2), ('worship', 3), ('high_worship', 4), ('fellowship', 5)
+                ]
+            }
+            
+            if set_list_type in song_data:
+                for song_type, order in song_data[set_list_type]:
+                    title = request.POST.get(f'{set_list_type}_{song_type}_title', '').strip()
+                    link = request.POST.get(f'{set_list_type}_{song_type}_link', '').strip()
+                    
+                    if title:
+                        Song.objects.create(
+                            lineup=lineup,
+                            song_type=song_type,
+                            title=title,
+                            song_link=link,
+                            order=order
+                        )
+                        songs_created += 1
+            else:
+                i = 1
+                while True:
+                    song_type = request.POST.get(f'custom_song_type_{i}')
+                    song_title = request.POST.get(f'custom_song_title_{i}', '').strip()
+                    song_link = request.POST.get(f'custom_song_link_{i}', '').strip()
+                    
+                    if not song_type or not song_title:
+                        break
+                    
+                    Song.objects.create(
+                        lineup=lineup,
+                        song_type=song_type,
+                        title=song_title,
+                        song_link=song_link,
+                        order=i
+                    )
+                    songs_created += 1
+                    i += 1
+            
+            if songs_created == 0:
+                messages.warning(request, 'Lineup created but no songs were added. Please make sure to fill in song titles.')
+            else:
+                messages.success(request, f'Lineup created successfully with {songs_created} songs!')
+        
+        return redirect('dashboard')
+    
+    return render(request, 'music_ministry/create_lineup.html', {
+        'event': event,
+        'form': LineupForm()
+    })
+
+
+@login_required
+def edit_lineup(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    lineup = get_object_or_404(Lineup, event=event)
+    current_member = get_object_or_404(Member, user=request.user)
+    
+    if not event.assignments.filter(member=current_member).exists() and request.user.role != 'admin':
+        messages.error(request, 'You are not assigned to this event.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        with transaction.atomic():
+            lineup.songs.all().delete()
+            
+            set_list_type = request.POST.get('set_list_type', lineup.set_list_type)
+            lineup.set_list_type = set_list_type
+            lineup.save()
+            
+            songs_created = 0
+            
+            song_data = {
+                '1p1w1f': [
+                    ('praise', 1), ('worship', 2), ('fellowship', 3)
+                ],
+                '2p1w1f': [
+                    ('praise', 1), ('high_praise', 2), ('worship', 3), ('fellowship', 4)
+                ],
+                '2p2w1f': [
+                    ('praise', 1), ('high_praise', 2), ('worship', 3), ('high_worship', 4), ('fellowship', 5)
+                ]
+            }
+            
+            if set_list_type in song_data:
+                for song_type, order in song_data[set_list_type]:
+                    title = request.POST.get(f'{set_list_type}_{song_type}_title', '').strip()
+                    link = request.POST.get(f'{set_list_type}_{song_type}_link', '').strip()
+                    
+                    if title:
+                        Song.objects.create(
+                            lineup=lineup,
+                            song_type=song_type,
+                            title=title,
+                            song_link=link,
+                            order=order
+                        )
+                        songs_created += 1
+            else:
+                i = 1
+                while True:
+                    song_type = request.POST.get(f'custom_song_type_{i}')
+                    song_title = request.POST.get(f'custom_song_title_{i}', '').strip()
+                    song_link = request.POST.get(f'custom_song_link_{i}', '').strip()
+                    
+                    if not song_type or not song_title:
+                        break
+                    
+                    Song.objects.create(
+                        lineup=lineup,
+                        song_type=song_type,
+                        title=song_title,
+                        song_link=song_link,
+                        order=i
+                    )
+                    songs_created += 1
+                    i += 1
+            
+            if songs_created == 0:
+                messages.warning(request, 'Lineup updated but no songs were added. Please make sure to fill in song titles.')
+            else:
+                messages.success(request, f'Lineup updated successfully with {songs_created} songs!')
+        
+        return redirect('dashboard')
+    
+    return render(request, 'music_ministry/edit_lineup.html', {
+        'event': event,
+        'lineup': lineup,
+        'form': LineupForm(instance=lineup)
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_lineup(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    lineup = get_object_or_404(Lineup, event=event)
+    
+    if request.method == 'POST':
+        form = LineupApprovalForm(request.POST, instance=lineup)
+        if form.is_valid():
+            form.save()
+            status = form.cleaned_data['status']
+            if status == 'approved':
+                messages.success(request, 'Lineup approved successfully!')
+            elif status == 'rejected':
+                messages.success(request, 'Lineup rejected.')
+            else:
+                messages.success(request, 'Lineup status updated.')
+            return redirect('dashboard')
+    else:
+        form = LineupApprovalForm(instance=lineup)
+    
+    return render(request, 'music_ministry/approve_lineup.html', {
+        'event': event,
+        'lineup': lineup,
+        'form': form
+    })

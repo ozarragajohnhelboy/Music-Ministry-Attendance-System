@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User, Member, Event, EventAssignment
+from .models import User, Member, Event, EventAssignment, Lineup, Song
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -85,3 +85,39 @@ class EventAssignmentForm(forms.ModelForm):
     class Meta:
         model = EventAssignment
         fields = []
+
+
+class LineupForm(forms.ModelForm):
+    set_list_type = forms.ChoiceField(
+        choices=Lineup.SET_LIST_CHOICES,
+        widget=forms.Select(attrs={'id': 'setListType', 'onchange': 'updateSongFields()'})
+    )
+    
+    class Meta:
+        model = Lineup
+        fields = ['set_list_type']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['set_list_type'].widget.attrs.update({'class': 'form-input form-select'})
+
+
+class SongForm(forms.ModelForm):
+    class Meta:
+        model = Song
+        fields = ['song_type', 'title', 'song_link', 'order']
+        widgets = {
+            'song_type': forms.Select(attrs={'class': 'form-input form-select'}),
+            'title': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Song title'}),
+            'song_link': forms.URLInput(attrs={'class': 'form-input', 'placeholder': 'Song link (optional)'}),
+            'order': forms.NumberInput(attrs={'class': 'form-input', 'min': '1'}),
+        }
+
+
+class LineupApprovalForm(forms.ModelForm):
+    class Meta:
+        model = Lineup
+        fields = ['status']
+        widgets = {
+            'status': forms.Select(attrs={'class': 'form-input form-select'})
+        }

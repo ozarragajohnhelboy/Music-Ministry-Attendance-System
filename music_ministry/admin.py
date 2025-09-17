@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Member, Event, EventAssignment
+from .models import User, Member, Event, EventAssignment, Lineup, Song
 
 
 @admin.register(User)
@@ -38,3 +38,27 @@ class EventAssignmentAdmin(admin.ModelAdmin):
     list_filter = ('assigned_role', 'is_backup', 'event__date')
     search_fields = ('event__title', 'member__name')
     ordering = ('-event__date', 'assigned_role', 'is_backup')
+
+
+class SongInline(admin.TabularInline):
+    model = Song
+    extra = 1
+    fields = ('song_type', 'title', 'song_link', 'order')
+    ordering = ('order',)
+
+
+@admin.register(Lineup)
+class LineupAdmin(admin.ModelAdmin):
+    list_display = ('event', 'set_list_type', 'status', 'created_by', 'created_at')
+    list_filter = ('set_list_type', 'status', 'created_at')
+    search_fields = ('event__title', 'created_by__name')
+    ordering = ('-created_at',)
+    inlines = [SongInline]
+
+
+@admin.register(Song)
+class SongAdmin(admin.ModelAdmin):
+    list_display = ('title', 'song_type', 'lineup', 'order')
+    list_filter = ('song_type', 'lineup__status')
+    search_fields = ('title', 'lineup__event__title')
+    ordering = ('lineup__event__date', 'order')

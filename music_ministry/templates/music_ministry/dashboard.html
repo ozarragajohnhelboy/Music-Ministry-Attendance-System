@@ -19,6 +19,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>All Events
         </button>
+        <button class="tab-button" data-tab="lineups">
+          <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+          </svg>Lineups
+        </button>
       </div>
       {% if user.role == 'admin' %}
         <button id="addEventBtn" class="btn btn-primary">
@@ -120,6 +125,92 @@
             {% endif %}
           </div>
         {% endfor %}
+      </div>
+    </div>
+
+    <div id="lineups" class="tab-content">
+      <div class="lineups-container">
+        <div class="lineups-header">
+          <h2>Event Lineups</h2>
+          <p>Manage song lineups for your assigned events</p>
+        </div>
+        
+        <!-- Date Filter -->
+        <div class="events-filter">
+          <div class="filter-group">
+            <label for="lineupDateFilter" class="filter-label">Filter by Date:</label>
+            <div class="filter-controls">
+              <input type="date" id="lineupDateFilter" class="filter-input" placeholder="Select date" />
+              <button id="clearLineupFilter" class="btn btn-secondary btn-sm">Clear</button>
+              <button id="todayLineupFilter" class="btn btn-secondary btn-sm">Today</button>
+            </div>
+          </div>
+          <div class="filter-results">
+            <span id="lineupFilterStatus" class="filter-status"></span>
+          </div>
+        </div>
+        
+        <div class="lineups-list">
+          {% for event_with_lineup in events_with_lineups %}
+            <div class="lineup-item" data-event-date="{{ event_with_lineup.event.date|date:'Y-m-d' }}" data-event-title="{{ event_with_lineup.event.title|lower }}">
+              <div class="lineup-header">
+                <div>
+                  <h3 class="lineup-event-title">{{ event_with_lineup.event.title }}</h3>
+                  <div class="lineup-datetime">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {{ event_with_lineup.event.date|date:'F j, Y' }} • {{ event_with_lineup.event.start_time|time:'g:i A' }} - {{ event_with_lineup.event.end_time|time:'g:i A' }}
+                  </div>
+                </div>
+                <div class="lineup-actions">
+                  {% if event_with_lineup.lineup %}
+                    {% if event_with_lineup.can_edit %}
+                      <a href="{% url 'edit_lineup' event_with_lineup.event.id %}" class="btn btn-primary">Edit Lineup</a>
+                    {% endif %}
+                    {% if user.role == 'admin' %}
+                      <a href="{% url 'approve_lineup' event_with_lineup.event.id %}" class="btn btn-secondary">Review</a>
+                    {% endif %}
+                    <span class="lineup-status lineup-status-{{ event_with_lineup.lineup.status }}">
+                      {{ event_with_lineup.lineup.get_status_display }}
+                    </span>
+                  {% else %}
+                    {% if event_with_lineup.can_edit %}
+                      <a href="{% url 'create_lineup' event_with_lineup.event.id %}" class="btn btn-primary">Create Lineup</a>
+                    {% else %}
+                      <span class="lineup-status lineup-status-none">No Lineup</span>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+              
+              {% if event_with_lineup.lineup %}
+                <div class="lineup-songs">
+                  <h4>{{ event_with_lineup.lineup.get_set_list_type_display }}</h4>
+                  <div class="songs-list">
+                    {% for song in event_with_lineup.lineup.songs.all %}
+                      <div class="song-item">
+                        <span class="song-type">{{ song.get_song_type_display }}</span>
+                        <span class="song-title">{{ song.title }}</span>
+                        {% if song.song_link %}
+                          <a href="{{ song.song_link }}" target="_blank" class="song-link">🔗 Listen</a>
+                        {% endif %}
+                      </div>
+                    {% empty %}
+                      <div class="song-item">
+                        <p style="color: var(--text-gray); font-style: italic;">No songs added yet.</p>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          {% empty %}
+            <div class="lineup-item" style="text-align: center; color: var(--text-gray);">
+              <p>No events scheduled yet.</p>
+            </div>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>
@@ -326,6 +417,35 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      // Check if we should show lineups tab
+      if (window.location.pathname === '/lineups/') {
+        const lineupsTab = document.querySelector('[data-tab="lineups"]');
+        if (lineupsTab) {
+          lineupsTab.click();
+        }
+      }
+
+      // Tab switching functionality
+      const tabButtons = document.querySelectorAll('.tab-button');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const targetTab = this.getAttribute('data-tab');
+          
+          // Remove active class from all tabs and contents
+          tabButtons.forEach(btn => btn.classList.remove('active'));
+          tabContents.forEach(content => content.classList.remove('active'));
+          
+          // Add active class to clicked tab and corresponding content
+          this.classList.add('active');
+          const targetContent = document.getElementById(targetTab);
+          if (targetContent) {
+            targetContent.classList.add('active');
+          }
+        });
+      });
+
       // Delete event functionality
       const deleteButtons = document.querySelectorAll('.delete-event-btn');
       const deleteModal = document.getElementById('deleteEventModal');

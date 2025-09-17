@@ -129,6 +129,16 @@ class CalendarManager {
                     e.stopPropagation();
                     this.showEventInAllEventsTab(event.id);
                 });
+
+                if (event.songs && event.songs.length > 0) {
+                    eventElement.addEventListener('mouseenter', (e) => {
+                        this.showEventTooltip(e, event);
+                    });
+                    eventElement.addEventListener('mouseleave', () => {
+                        this.hideEventTooltip();
+                    });
+                }
+
                 dayElement.appendChild(eventElement);
             });
 
@@ -333,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.tabManager = new TabManager();
     window.modalManager = new ModalManager();
     window.eventFilter = new EventFilter();
+    window.lineupFilter = new LineupFilter();
 
     const alerts = document.querySelectorAll('.alert-success');
     if (alerts.length > 0) {
@@ -488,6 +499,143 @@ class EventFilter {
     // Method to be called when new events are added dynamically
     refreshFilter() {
         const dateFilter = document.getElementById('dateFilter');
+        if (dateFilter && dateFilter.value) {
+            this.filterByDate(dateFilter.value);
+        } else {
+            this.updateStatus();
+        }
+    }
+
+    showEventTooltip(event, eventData) {
+        this.hideEventTooltip();
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'event-tooltip';
+        tooltip.innerHTML = `
+            <div class="tooltip-header">
+                <h4>${eventData.title}</h4>
+            </div>
+            <div class="tooltip-songs">
+                <h5>Songs:</h5>
+                ${eventData.songs.map(song => `
+                    <div class="tooltip-song">
+                        <span class="tooltip-song-type">${song.type}:</span>
+                        <span class="tooltip-song-title">${song.title}</span>
+                        ${song.song_link ? `<a href="${song.song_link}" target="_blank" class="tooltip-song-link">🔗 Listen</a>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        document.body.appendChild(tooltip);
+
+        const rect = event.target.getBoundingClientRect();
+        tooltip.style.left = rect.left + 'px';
+        tooltip.style.top = (rect.bottom + 5) + 'px';
+    }
+
+    hideEventTooltip() {
+        const existingTooltip = document.querySelector('.event-tooltip');
+        if (existingTooltip) {
+            existingTooltip.remove();
+        }
+    }
+}
+
+class LineupFilter {
+    constructor() {
+        this.init();
+    }
+
+    init() {
+        const dateFilter = document.getElementById('lineupDateFilter');
+        const clearFilter = document.getElementById('clearLineupFilter');
+        const todayFilter = document.getElementById('todayLineupFilter');
+        const filterStatus = document.getElementById('lineupFilterStatus');
+
+        if (!dateFilter || !clearFilter || !todayFilter) return;
+
+        // Date filter change event
+        dateFilter.addEventListener('change', () => {
+            this.filterByDate(dateFilter.value);
+        });
+
+        // Clear filter button
+        clearFilter.addEventListener('click', () => {
+            dateFilter.value = '';
+            this.clearFilter();
+        });
+
+        // Today filter button
+        todayFilter.addEventListener('click', () => {
+            const today = new Date().toISOString().split('T')[0];
+            dateFilter.value = today;
+            this.filterByDate(today);
+        });
+
+        // Initialize status
+        this.updateStatus();
+    }
+
+    filterByDate(selectedDate) {
+        const lineupItems = document.querySelectorAll('.lineup-item');
+        let visibleCount = 0;
+        const totalCount = lineupItems.length;
+
+        lineupItems.forEach(item => {
+            const eventDate = item.getAttribute('data-event-date');
+            if (eventDate === selectedDate) {
+                item.style.display = 'block';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        this.updateStatus(selectedDate, visibleCount, totalCount);
+    }
+
+    clearFilter() {
+        const lineupItems = document.querySelectorAll('.lineup-item');
+
+        lineupItems.forEach(item => {
+            item.style.display = 'block';
+        });
+
+        this.updateStatus();
+    }
+
+    updateStatus(selectedDate = null, visibleCount = null, totalCount = null) {
+        const filterStatus = document.getElementById('lineupFilterStatus');
+        if (!filterStatus) return;
+
+        if (selectedDate && visibleCount !== null && totalCount !== null) {
+            const date = new Date(selectedDate);
+            const formattedDate = date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            if (visibleCount === 0) {
+                filterStatus.textContent = `No lineups found for ${formattedDate}`;
+                filterStatus.className = 'filter-status filter-status-warning';
+            } else {
+                filterStatus.textContent = `Showing ${visibleCount} of ${totalCount} lineups for ${formattedDate}`;
+                filterStatus.className = 'filter-status filter-status-success';
+            }
+        } else {
+            const allLineupItems = document.querySelectorAll('.lineup-item');
+            const totalLineups = allLineupItems.length;
+            filterStatus.textContent = `Showing all ${totalLineups} lineups`;
+            filterStatus.className = 'filter-status';
+        }
+    }
+
+    // Method to be called when new lineups are added dynamically
+    refreshFilter() {
+        const dateFilter = document.getElementById('lineupDateFilter');
         if (dateFilter && dateFilter.value) {
             this.filterByDate(dateFilter.value);
         } else {

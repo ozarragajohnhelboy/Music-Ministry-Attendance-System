@@ -1,0 +1,191 @@
+{% extends 'music_ministry/base.html' %}
+
+{% block content %}
+  <div class="page-header">
+    <h1 class="page-title">Edit Lineup</h1>
+    <p class="page-subtitle">{{ event.title }} - {{ event.date|date:'F j, Y' }}</p>
+  </div>
+
+  <div class="form-container">
+    <form method="post" class="lineup-form">
+      {% csrf_token %}
+      
+      <div class="form-group">
+        <label class="form-label">Set List Type</label>
+        {{ form.set_list_type }}
+      </div>
+
+      <div id="songFields">
+        <div id="1p1w1f" class="song-set" style="display: none;">
+          <h3>1 Praise, 1 Worship, 1 Fellowship</h3>
+          <div class="form-group">
+            <label class="form-label">Praise Song</label>
+            <input type="text" name="1p1w1f_praise_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'praise' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="1p1w1f_praise_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'praise' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Worship Song</label>
+            <input type="text" name="1p1w1f_worship_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'worship' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="1p1w1f_worship_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'worship' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fellowship Song</label>
+            <input type="text" name="1p1w1f_fellowship_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'fellowship' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="1p1w1f_fellowship_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'fellowship' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+        </div>
+
+        <div id="2p1w1f" class="song-set" style="display: none;">
+          <h3>2 Praise, 1 Worship, 1 Fellowship</h3>
+          <div class="form-group">
+            <label class="form-label">Praise Song</label>
+            <input type="text" name="2p1w1f_praise_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'praise' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p1w1f_praise_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'praise' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">High Praise Song</label>
+            <input type="text" name="2p1w1f_high_praise_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'high_praise' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p1w1f_high_praise_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'high_praise' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Worship Song</label>
+            <input type="text" name="2p1w1f_worship_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'worship' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p1w1f_worship_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'worship' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fellowship Song</label>
+            <input type="text" name="2p1w1f_fellowship_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'fellowship' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p1w1f_fellowship_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'fellowship' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+        </div>
+
+        <div id="2p2w1f" class="song-set" style="display: none;">
+          <h3>2 Praise, 2 Worship, 1 Fellowship</h3>
+          <div class="form-group">
+            <label class="form-label">Praise Song</label>
+            <input type="text" name="2p2w1f_praise_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'praise' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p2w1f_praise_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'praise' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">High Praise Song</label>
+            <input type="text" name="2p2w1f_high_praise_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'high_praise' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p2w1f_high_praise_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'high_praise' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Worship Song</label>
+            <input type="text" name="2p2w1f_worship_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'worship' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p2w1f_worship_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'worship' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">High Worship Song</label>
+            <input type="text" name="2p2w1f_high_worship_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'high_worship' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p2w1f_high_worship_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'high_worship' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fellowship Song</label>
+            <input type="text" name="2p2w1f_fellowship_title" class="form-input" placeholder="Song title" value="{% for song in lineup.songs.all %}{% if song.song_type == 'fellowship' %}{{ song.title }}{% endif %}{% endfor %}" required>
+            <input type="url" name="2p2w1f_fellowship_link" class="form-input" placeholder="Song link (optional)" value="{% for song in lineup.songs.all %}{% if song.song_type == 'fellowship' %}{{ song.song_link }}{% endif %}{% endfor %}">
+          </div>
+        </div>
+
+        <div id="custom" class="song-set" style="display: none;">
+          <h3>Custom Set List</h3>
+          <div id="customSongs">
+            {% for song in lineup.songs.all %}
+              <div class="custom-song-item">
+                <div class="form-group">
+                  <label class="form-label">Song Type</label>
+                  <select name="custom_song_type_{{ forloop.counter }}" class="form-input form-select">
+                    <option value="praise" {% if song.song_type == 'praise' %}selected{% endif %}>Praise</option>
+                    <option value="high_praise" {% if song.song_type == 'high_praise' %}selected{% endif %}>High Praise</option>
+                    <option value="worship" {% if song.song_type == 'worship' %}selected{% endif %}>Worship</option>
+                    <option value="high_worship" {% if song.song_type == 'high_worship' %}selected{% endif %}>High Worship</option>
+                    <option value="fellowship" {% if song.song_type == 'fellowship' %}selected{% endif %}>Fellowship</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Song Title</label>
+                  <input type="text" name="custom_song_title_{{ forloop.counter }}" class="form-input" placeholder="Song title" value="{{ song.title }}" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Song Link</label>
+                  <input type="url" name="custom_song_link_{{ forloop.counter }}" class="form-input" placeholder="Song link (optional)" value="{{ song.song_link }}">
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <button type="button" id="addCustomSong" class="btn btn-secondary">Add Another Song</button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Update Lineup</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    function updateSongFields() {
+      const setListType = document.getElementById('setListType').value;
+      const songSets = document.querySelectorAll('.song-set');
+      
+      songSets.forEach(set => {
+        set.style.display = 'none';
+        const inputs = set.querySelectorAll('input[required]');
+        inputs.forEach(input => {
+          input.removeAttribute('required');
+        });
+      });
+      
+      if (setListType) {
+        const activeSet = document.getElementById(setListType);
+        activeSet.style.display = 'block';
+        const inputs = activeSet.querySelectorAll('input[type="text"]');
+        inputs.forEach(input => {
+          if (input.name.includes('_title')) {
+            input.setAttribute('required', 'required');
+          }
+        });
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const setListSelect = document.getElementById('setListType');
+      setListSelect.value = '{{ lineup.set_list_type }}';
+      updateSongFields();
+      
+      setListSelect.addEventListener('change', updateSongFields);
+      
+      let customSongCount = {{ lineup.songs.count }};
+      
+      document.getElementById('addCustomSong').addEventListener('click', function() {
+        customSongCount++;
+        const customSongs = document.getElementById('customSongs');
+        const newSongItem = document.createElement('div');
+        newSongItem.className = 'custom-song-item';
+        newSongItem.innerHTML = `
+          <div class="form-group">
+            <label class="form-label">Song Type</label>
+            <select name="custom_song_type_${customSongCount}" class="form-input form-select">
+              <option value="praise">Praise</option>
+              <option value="high_praise">High Praise</option>
+              <option value="worship">Worship</option>
+              <option value="high_worship">High Worship</option>
+              <option value="fellowship">Fellowship</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Song Title</label>
+            <input type="text" name="custom_song_title_${customSongCount}" class="form-input" placeholder="Song title" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Song Link</label>
+            <input type="url" name="custom_song_link_${customSongCount}" class="form-input" placeholder="Song link (optional)">
+          </div>
+        `;
+        customSongs.appendChild(newSongItem);
+      });
+    });
+  </script>
+{% endblock %}
