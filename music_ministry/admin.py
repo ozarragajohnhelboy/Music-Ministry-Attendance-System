@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Member, Event, EventAssignment, Lineup, Song
+from .models import User, Member, Event, EventAssignment, Lineup, Song, Notification
 
 
 @admin.register(User)
@@ -62,3 +62,12 @@ class SongAdmin(admin.ModelAdmin):
     list_filter = ('song_type', 'lineup__status')
     search_fields = ('title', 'lineup__event__title')
     ordering = ('lineup__event__date', 'order')
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('recipient', 'title', 'notification_type', 'is_read', 'created_at')
+    list_filter = ('notification_type', 'is_read', 'created_at')
+    search_fields = ('recipient__name', 'title', 'message')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at',)

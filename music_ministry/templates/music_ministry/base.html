@@ -15,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <meta name="csrf-token" content="{{ csrf_token }}" />
   </head>
   <body>
     {% if user.is_authenticated %}
@@ -24,6 +25,30 @@
             <a href="{% url 'dashboard' %}" class="logo">JCSGO Arise Worship Team</a>
             <nav class="nav-menu"></nav>
             <div class="user-menu">
+              {% if user.role == 'member' %}
+                <div class="notification-bell">
+                  <button class="notification-btn" id="notificationBtn">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9zM13.73 21a2 2 0 01-3.46 0" />
+                    </svg>
+                    {% if unread_notifications_count > 0 %}
+                      <span class="notification-badge">{{ unread_notifications_count }}</span>
+                    {% endif %}
+                  </button>
+                  <div class="notification-dropdown" id="notificationDropdown">
+                    <div class="notification-header">
+                      <h4>Notifications</h4>
+                      {% if unread_notifications_count > 0 %}
+                        <button class="mark-all-read-btn" id="markAllReadBtn">Mark all as read</button>
+                      {% endif %}
+                    </div>
+                    <div class="notification-list" id="notificationList">
+                      <!-- Notifications will be loaded here -->
+                    </div>
+                  </div>
+                  <div class="notification-overlay" id="notificationOverlay"></div>
+                </div>
+              {% endif %}
               <div class="user-avatar">{{ user.first_name|first|default:user.username|first|upper }}</div>
               <span class="nav-link">{{ user.username }}</span>
               {% if user.role == 'admin' %}
@@ -78,6 +103,215 @@
               alert.parentNode.removeChild(alert)
             }
           }, 500)
+        }
+
+        // Notification functionality
+        const notificationBtn = document.getElementById('notificationBtn');
+        const notificationDropdown = document.getElementById('notificationDropdown');
+        const notificationList = document.getElementById('notificationList');
+        const markAllReadBtn = document.getElementById('markAllReadBtn');
+        const notificationOverlay = document.getElementById('notificationOverlay');
+
+        if (notificationBtn && notificationDropdown) {
+          // Toggle notification dropdown
+          notificationBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleNotificationDropdown();
+          });
+
+          // Close dropdown when clicking overlay (mobile)
+          if (notificationOverlay) {
+            notificationOverlay.addEventListener('click', function() {
+              closeNotificationDropdown();
+            });
+          }
+
+          // Close dropdown when clicking outside (desktop)
+          document.addEventListener('click', function(e) {
+            if (!notificationDropdown.contains(e.target) && !notificationBtn.contains(e.target)) {
+              closeNotificationDropdown();
+            }
+          });
+
+          // Mark all as read
+          if (markAllReadBtn) {
+            markAllReadBtn.addEventListener('click', function() {
+              markAllNotificationsAsRead();
+            });
+          }
+        }
+
+        // Toggle notification dropdown
+        function toggleNotificationDropdown() {
+          const isOpen = notificationDropdown.classList.contains('show');
+          
+          if (isOpen) {
+            closeNotificationDropdown();
+          } else {
+            openNotificationDropdown();
+          }
+        }
+
+        // Open notification dropdown
+        function openNotificationDropdown() {
+          notificationDropdown.classList.add('show');
+          if (notificationOverlay) {
+            notificationOverlay.classList.add('show');
+          }
+          loadNotifications();
+        }
+
+        // Close notification dropdown
+        function closeNotificationDropdown() {
+          notificationDropdown.classList.remove('show');
+          if (notificationOverlay) {
+            notificationOverlay.classList.remove('show');
+          }
+        }
+
+        // Load notifications via API
+        function loadNotifications() {
+          fetch('/api/notifications/')
+            .then(response => response.json())
+            .then(data => {
+              displayNotifications(data.notifications);
+            })
+            .catch(error => {
+              console.error('Error loading notifications:', error);
+              notificationList.innerHTML = '<div class="notification-item">Error loading notifications</div>';
+            });
+        }
+
+        // Display notifications in the dropdown
+        function displayNotifications(notifications) {
+          if (!notifications || notifications.length === 0) {
+            notificationList.innerHTML = '<div class="notification-item">No notifications</div>';
+            return;
+          }
+
+          const notificationHTML = notifications.map(notification => `
+            <div class="notification-item ${notification.is_read ? '' : 'unread'}" 
+                 data-notification-id="${notification.id}">
+              <div class="notification-title">${notification.title}</div>
+              <div class="notification-message">${notification.message}</div>
+              <div class="notification-time">${notification.created_at}</div>
+            </div>
+          `).join('');
+
+          notificationList.innerHTML = notificationHTML;
+
+          // Add click handlers for individual notifications
+          const notificationItems = notificationList.querySelectorAll('.notification-item');
+          notificationItems.forEach(item => {
+            item.addEventListener('click', function() {
+              const notificationId = this.dataset.notificationId;
+              if (notificationId && this.classList.contains('unread')) {
+                markNotificationAsRead(notificationId, this);
+              }
+            });
+          });
+        }
+
+        // Mark a single notification as read
+        function markNotificationAsRead(notificationId, element) {
+          fetch(`/api/notifications/${notificationId}/read/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              element.classList.remove('unread');
+              updateNotificationBadge();
+            }
+          })
+          .catch(error => console.error('Error marking notification as read:', error));
+        }
+
+        // Mark all notifications as read
+        function markAllNotificationsAsRead() {
+          fetch('/api/notifications/mark-all-read/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Remove unread class from all notifications
+              const unreadItems = notificationList.querySelectorAll('.notification-item.unread');
+              unreadItems.forEach(item => item.classList.remove('unread'));
+              updateNotificationBadge();
+            }
+          })
+          .catch(error => console.error('Error marking all notifications as read:', error));
+        }
+
+        // Update notification badge count
+        function updateNotificationBadge() {
+          const badge = document.querySelector('.notification-badge');
+          const unreadCount = notificationList.querySelectorAll('.notification-item.unread').length;
+          
+          if (badge) {
+            if (unreadCount > 0) {
+              badge.textContent = unreadCount;
+              badge.style.display = 'flex';
+            } else {
+              badge.style.display = 'none';
+            }
+          }
+          
+          // Show/hide mark all read button based on unread count
+          const markAllReadBtn = document.getElementById('markAllReadBtn');
+          if (markAllReadBtn) {
+            if (unreadCount > 0) {
+              markAllReadBtn.style.display = 'block';
+            } else {
+              markAllReadBtn.style.display = 'none';
+            }
+          }
+        }
+
+        // Get CSRF token for API requests
+        function getCsrfToken() {
+          // Try to get CSRF token from meta tag first
+          const metaToken = document.querySelector('meta[name=csrf-token]');
+          if (metaToken) {
+            return metaToken.getAttribute('content');
+          }
+          
+          // Fallback to form input
+          const formToken = document.querySelector('[name=csrfmiddlewaretoken]');
+          if (formToken) {
+            return formToken.value;
+          }
+          
+          // Fallback to cookie
+          const cookieToken = getCookie('csrftoken');
+          if (cookieToken) {
+            return cookieToken;
+          }
+          
+          return '';
+        }
+
+        // Helper function to get cookie value
+        function getCookie(name) {
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+              if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+              }
+            }
+          }
+          return cookieValue;
         }
       })
     </script>

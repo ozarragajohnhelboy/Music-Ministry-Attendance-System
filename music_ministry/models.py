@@ -106,3 +106,25 @@ class Song(models.Model):
     
     def __str__(self):
         return f"{self.get_song_type_display()}: {self.title}"
+
+
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+        ('event_assignment', 'Event Assignment'),
+        ('lineup_approved', 'Lineup Approved'),
+        ('lineup_rejected', 'Lineup Rejected'),
+    ]
+    
+    recipient = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='notifications')
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.recipient.name} - {self.title}"

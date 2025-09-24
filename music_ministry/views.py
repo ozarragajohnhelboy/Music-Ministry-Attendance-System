@@ -4,13 +4,15 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LoginView
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.db import transaction
 from datetime import datetime, date
 import json
 
-from .models import User, Member, Event, EventAssignment, Lineup, Song
+from .models import User, Member, Event, EventAssignment, Lineup, Song, Notification
 from .forms import CustomUserCreationForm, EventForm, EventAssignmentForm, LineupForm, SongForm, LineupApprovalForm
+from .notifications import create_event_assignment_notifications, create_lineup_approval_notifications, get_unread_notifications_count, mark_notification_as_read, mark_all_notifications_as_read
 
 
 def is_admin(user):
@@ -74,8 +76,10 @@ def dashboard(request):
     vocalists = Member.objects.filter(musician_role='vocalist', is_active=True)
     
     current_member = None
+    unread_notifications_count = 0
     if hasattr(request.user, 'member'):
         current_member = request.user.member
+        unread_notifications_count = get_unread_notifications_count(current_member)
     
     events_with_lineups = []
     for event in events:
@@ -103,6 +107,7 @@ def dashboard(request):
         'bassists': bassists,
         'vocalists': vocalists,
         'events_with_lineups': events_with_lineups,
+        'unread_notifications_count': unread_notifications_count,
     })
 
 
@@ -207,6 +212,11 @@ def add_event(request):
             except Member.DoesNotExist:
                 pass
         
+        # Create notifications for assigned members
+        assigned_members = EventAssignment.objects.filter(event=event)
+        if assigned_members.exists():
+            create_event_assignment_notifications(event, assigned_members)
+        
         messages.success(request, 'Event created successfully with team assignments!')
         return redirect('dashboard')
     else:
@@ -273,6 +283,11 @@ def assign_members(request, event_id):
                         assigned_role=role,
                         is_backup=True
                     )
+        
+        # Create notifications for newly assigned members
+        assigned_members = EventAssignment.objects.filter(event=event)
+        if assigned_members.exists():
+            create_event_assignment_notifications(event, assigned_members)
         
         messages.success(request, 'Member assignments updated successfully!')
         return redirect('dashboard')
@@ -517,6 +532,11 @@ def approve_lineup(request, event_id):
         if form.is_valid():
             form.save()
             status = form.cleaned_data['status']
+            
+            # Create notifications for all assigned members
+            if status in ['approved', 'rejected']:
+                create_lineup_approval_notifications(lineup, status)
+            
             if status == 'approved':
                 messages.success(request, 'Lineup approved successfully!')
             elif status == 'rejected':
@@ -532,3 +552,66 @@ def approve_lineup(request, event_id):
         'lineup': lineup,
         'form': form
     })
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_notifications(request):
+    """
+    API endpoint to fetch notifications for the current user.
+    """
+    if not hasattr(request.user, 'member'):
+        return JsonResponse({'notifications': []})
+    
+    current_member = request.user.member
+    notifications = Notification.objects.filter(recipient=current_member).order_by('-created_at')[:20]
+    
+    notifications_data = []
+    for notification in notifications:
+        notifications_data.append({
+            'id': notification.id,
+            'title': notification.title,
+            'message': notification.message,
+            'type': notification.notification_type,
+            'is_read': notification.is_read,
+            'created_at': notification.created_at.strftime('%b %d, %Y %I:%M %p'),
+            'event_id': notification.event.id if notification.event else None,
+            'event_title': notification.event.title if notification.event else None,
+        })
+    
+    return JsonResponse({'notifications': notifications_data})
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def api_mark_notification_read(request, notification_id):
+    """
+    API endpoint to mark a specific notification as read.
+    """
+    if not hasattr(request.user, 'member'):
+        return JsonResponse({'success': False, 'error': 'User has no member profile'})
+    
+    current_member = request.user.member
+    success = mark_notification_as_read(notification_id, current_member)
+    
+    if success:
+        return JsonResponse({'success': True})
+    else:
+        return JsonResponse({'success': False, 'error': 'Notification not found'})
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def api_mark_all_notifications_read(request):
+    """
+    API endpoint to mark all notifications as read for the current user.
+    """
+    if not hasattr(request.user, 'member'):
+        return JsonResponse({'success': False, 'error': 'User has no member profile'})
+    
+    current_member = request.user.member
+    updated_count = mark_all_notifications_as_read(current_member)
+    
+    return JsonResponse({'success': True, 'updated_count': updated_count})
