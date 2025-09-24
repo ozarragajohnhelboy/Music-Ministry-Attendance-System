@@ -17,6 +17,26 @@ def is_admin(user):
     return user.is_authenticated and user.role == 'admin'
 
 
+def get_or_create_member_for_user(user):
+    """
+    Get or create a Member object for a user.
+    For admin users who don't have Member objects, create a default one.
+    """
+    try:
+        return user.member
+    except Member.DoesNotExist:
+        if user.role == 'admin':
+            # Create a default member for admin users
+            return Member.objects.create(
+                user=user,
+                name=user.get_full_name() or user.username,
+                email=user.email or f"{user.username}@admin.local",
+                musician_role='worship_leader'  # Default role for admin
+            )
+        else:
+            raise Member.DoesNotExist("User does not have an associated Member object")
+
+
 class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
     redirect_authenticated_user = True
@@ -318,7 +338,7 @@ def lineups_view(request):
 @login_required
 def create_lineup(request, event_id):
     event = get_object_or_404(Event, id=event_id)
-    current_member = get_object_or_404(Member, user=request.user)
+    current_member = get_or_create_member_for_user(request.user)
     
     if not event.assignments.filter(member=current_member).exists() and request.user.role != 'admin':
         messages.error(request, 'You are not assigned to this event.')
@@ -410,7 +430,7 @@ def create_lineup(request, event_id):
 def edit_lineup(request, event_id):
     event = get_object_or_404(Event, id=event_id)
     lineup = get_object_or_404(Lineup, event=event)
-    current_member = get_object_or_404(Member, user=request.user)
+    current_member = get_or_create_member_for_user(request.user)
     
     if not event.assignments.filter(member=current_member).exists() and request.user.role != 'admin':
         messages.error(request, 'You are not assigned to this event.')

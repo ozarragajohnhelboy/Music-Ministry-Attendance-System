@@ -166,6 +166,7 @@
                 </div>
                 <div class="lineup-actions">
                   {% if event_with_lineup.lineup %}
+                    <button class="btn btn-secondary view-lineup-details-btn" data-event-id="{{ event_with_lineup.event.id }}">View Details</button>
                     {% if event_with_lineup.can_edit %}
                       <a href="{% url 'edit_lineup' event_with_lineup.event.id %}" class="btn btn-primary">Edit Lineup</a>
                     {% endif %}
@@ -186,7 +187,7 @@
               </div>
               
               {% if event_with_lineup.lineup %}
-                <div class="lineup-songs">
+                <div class="lineup-songs hidden">
                   <h4>{{ event_with_lineup.lineup.get_set_list_type_display }}</h4>
                   <div class="songs-list">
                     {% for song in event_with_lineup.lineup.songs.all %}
@@ -523,6 +524,16 @@
           toggleEventDetails(eventId);
         });
       });
+
+      // Direct event listener for view lineup details buttons
+      const viewLineupDetailsButtons = document.querySelectorAll('.view-lineup-details-btn');
+      viewLineupDetailsButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+          e.preventDefault();
+          const eventId = this.dataset.eventId;
+          toggleLineupDetails(eventId);
+        });
+      });
     });
     
     // Simple standalone function for toggling event details
@@ -543,6 +554,28 @@
         toggleButton.textContent = 'Hide Details';
       } else {
         assignmentsSection.classList.add('hidden');
+        toggleButton.textContent = 'View Details';
+      }
+    }
+
+    // Simple standalone function for toggling lineup details
+    function toggleLineupDetails(eventId) {
+      const toggleButton = document.querySelector(`.view-lineup-details-btn[data-event-id="${eventId}"]`);
+      const lineupItem = toggleButton?.closest('.lineup-item');
+      const songsSection = lineupItem?.querySelector('.lineup-songs');
+      
+      if (!songsSection || !toggleButton) {
+        console.warn('Could not find elements for lineup event:', eventId);
+        return;
+      }
+      
+      const isCurrentlyHidden = songsSection.classList.contains('hidden');
+      
+      if (isCurrentlyHidden) {
+        songsSection.classList.remove('hidden');
+        toggleButton.textContent = 'Hide Details';
+      } else {
+        songsSection.classList.add('hidden');
         toggleButton.textContent = 'View Details';
       }
     }

@@ -653,6 +653,9 @@ body {
     display: none;
 }
 
+.lineup-songs.hidden {
+    display: none;
+}
 .event-title {
     font-size: 1.25rem;
     font-weight: 600;
