@@ -77,9 +77,15 @@ def dashboard(request):
     
     current_member = None
     unread_notifications_count = 0
+    can_create_events = False
+    
     if hasattr(request.user, 'member'):
         current_member = request.user.member
         unread_notifications_count = get_unread_notifications_count(current_member)
+    
+    # Only admin can create events
+    if request.user.role == 'admin':
+        can_create_events = True
     
     events_with_lineups = []
     for event in events:
@@ -108,6 +114,7 @@ def dashboard(request):
         'vocalists': vocalists,
         'events_with_lineups': events_with_lineups,
         'unread_notifications_count': unread_notifications_count,
+        'can_create_events': can_create_events,
     })
 
 
@@ -238,7 +245,8 @@ def assign_members(request, event_id):
                 'guitarists': 'guitarist', 
                 'keys_player': 'keys',
                 'drummer': 'drummer',
-                'bass_player': 'bassist'
+                'bass_player': 'bassist',
+                'vocalists': 'vocalist'
             }
             
             backup_fields = {
@@ -615,3 +623,23 @@ def api_mark_all_notifications_read(request):
     updated_count = mark_all_notifications_as_read(current_member)
     
     return JsonResponse({'success': True, 'updated_count': updated_count})
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["DELETE"])
+def api_delete_notification(request, notification_id):
+    """
+    API endpoint to delete a specific notification.
+    """
+    if not hasattr(request.user, 'member'):
+        return JsonResponse({'success': False, 'error': 'User has no member profile'})
+    
+    current_member = request.user.member
+    
+    try:
+        notification = Notification.objects.get(id=notification_id, recipient=current_member)
+        notification.delete()
+        return JsonResponse({'success': True})
+    except Notification.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Notification not found'})

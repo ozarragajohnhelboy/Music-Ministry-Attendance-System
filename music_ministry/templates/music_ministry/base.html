@@ -192,9 +192,16 @@
           const notificationHTML = notifications.map(notification => `
             <div class="notification-item ${notification.is_read ? '' : 'unread'}" 
                  data-notification-id="${notification.id}">
-              <div class="notification-title">${notification.title}</div>
-              <div class="notification-message">${notification.message}</div>
-              <div class="notification-time">${notification.created_at}</div>
+              <div class="notification-content">
+                <div class="notification-title">${notification.title}</div>
+                <div class="notification-message">${notification.message}</div>
+                <div class="notification-time">${notification.created_at}</div>
+              </div>
+              <button class="notification-delete-btn" onclick="deleteNotification(${notification.id}, this)" title="Delete notification">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
             </div>
           `).join('');
 
@@ -203,7 +210,12 @@
           // Add click handlers for individual notifications
           const notificationItems = notificationList.querySelectorAll('.notification-item');
           notificationItems.forEach(item => {
-            item.addEventListener('click', function() {
+            item.addEventListener('click', function(e) {
+              // Don't mark as read if clicking the delete button
+              if (e.target.closest('.notification-delete-btn')) {
+                return;
+              }
+              
               const notificationId = this.dataset.notificationId;
               if (notificationId && this.classList.contains('unread')) {
                 markNotificationAsRead(notificationId, this);
@@ -228,6 +240,116 @@
             }
           })
           .catch(error => console.error('Error marking notification as read:', error));
+        }
+
+        // Delete a single notification (global function)
+        window.deleteNotification = function(notificationId, button) {
+          showDeleteConfirmation(notificationId, button);
+        }
+
+        // Show custom delete confirmation modal
+        function showDeleteConfirmation(notificationId, button) {
+          // Create modal overlay
+          const overlay = document.createElement('div');
+          overlay.className = 'delete-confirmation-overlay';
+          overlay.innerHTML = `
+            <div class="delete-confirmation-modal">
+              <div class="delete-confirmation-header">
+                <svg width="24" height="24" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <h3>Delete Notification</h3>
+              </div>
+              <div class="delete-confirmation-body">
+                <p>Are you sure you want to delete this notification?</p>
+                <p class="delete-warning">This action cannot be undone.</p>
+              </div>
+              <div class="delete-confirmation-buttons">
+                <button class="btn btn-secondary" onclick="closeDeleteConfirmation()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeleteNotification(${notificationId}, this)">Delete</button>
+              </div>
+            </div>
+          `;
+          
+          document.body.appendChild(overlay);
+          
+          // Store button reference for later use
+          overlay._button = button;
+          
+          // Close modal when clicking outside
+          overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+              closeDeleteConfirmation();
+            }
+          });
+        }
+
+        // Close delete confirmation modal (global function)
+        window.closeDeleteConfirmation = function() {
+          const overlay = document.querySelector('.delete-confirmation-overlay');
+          if (overlay) {
+            overlay.remove();
+          }
+        }
+
+        // Confirm delete notification (global function)
+        window.confirmDeleteNotification = function(notificationId, confirmButton) {
+          const overlay = document.querySelector('.delete-confirmation-overlay');
+          const button = overlay._button;
+          
+          // Show loading state
+          confirmButton.disabled = true;
+          confirmButton.textContent = 'Deleting...';
+          
+          fetch(`/api/notifications/${notificationId}/delete/`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Remove the notification item from the DOM
+              const notificationItem = button.closest('.notification-item');
+              notificationItem.remove();
+              updateNotificationBadge();
+              closeDeleteConfirmation();
+            } else {
+              showDeleteError('Error deleting notification: ' + (data.error || 'Unknown error'));
+            }
+          })
+          .catch(error => {
+            console.error('Error deleting notification:', error);
+            showDeleteError('Error deleting notification');
+          })
+          .finally(() => {
+            // Reset button state
+            confirmButton.disabled = false;
+            confirmButton.textContent = 'Delete';
+          });
+        }
+
+        // Show delete error
+        function showDeleteError(message) {
+          const overlay = document.querySelector('.delete-confirmation-overlay');
+          if (overlay) {
+            const modal = overlay.querySelector('.delete-confirmation-modal');
+            modal.innerHTML = `
+              <div class="delete-confirmation-header">
+                <svg width="24" height="24" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <h3>Error</h3>
+              </div>
+              <div class="delete-confirmation-body">
+                <p>${message}</p>
+              </div>
+              <div class="delete-confirmation-buttons">
+                <button class="btn btn-primary" onclick="closeDeleteConfirmation()">OK</button>
+              </div>
+            `;
+          }
         }
 
         // Mark all notifications as read

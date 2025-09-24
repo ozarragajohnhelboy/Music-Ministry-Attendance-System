@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/events/', views.api_events, name='api_events'),
     path('api/notifications/', views.api_notifications, name='api_notifications'),
     path('api/notifications/<int:notification_id>/read/', views.api_mark_notification_read, name='api_mark_notification_read'),
+    path('api/notifications/<int:notification_id>/delete/', views.api_delete_notification, name='api_delete_notification'),
     path('api/notifications/mark-all-read/', views.api_mark_all_notifications_read, name='api_mark_all_notifications_read'),
     path('lineups/', views.lineups_view, name='lineups'),
     path('lineup/create/<int:event_id>/', views.create_lineup, name='create_lineup'),

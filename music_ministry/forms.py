@@ -15,6 +15,7 @@ class CustomUserCreationForm(UserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']
+        user.role = 'member'  # All registered users are members by default
         if commit:
             user.save()
             Member.objects.create(

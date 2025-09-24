@@ -18,6 +18,8 @@ class Member(models.Model):
         ('drummer', 'Drummer'),
         ('bassist', 'Bassist'),
         ('vocalist', 'Vocalist'),
+        ('technical', 'Technical'),
+        ('dancer', 'Dancer'),
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE)
