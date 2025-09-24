@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Event Assignment Notification</title>
+    <style>
+      body {
+        font-family: 'Inter', Arial, sans-serif;
+        line-height: 1.6;
+        color: #374151;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f9fafb;
+      }
+      .email-container {
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .header {
+        background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+        color: white;
+        padding: 30px 20px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 700;
+      }
+      .content {
+        padding: 30px 20px;
+      }
+      .notification-icon {
+        width: 60px;
+        height: 60px;
+        background-color: #eff6ff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+      }
+      .notification-icon svg {
+        width: 30px;
+        height: 30px;
+        color: #7c3aed;
+      }
+      .event-details {
+        background-color: #f3f4f6;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .event-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 10px;
+      }
+      .event-info {
+        color: #6b7280;
+        margin: 5px 0;
+      }
+      .cta-button {
+        display: inline-block;
+        background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+        color: white;
+        text-decoration: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin: 20px 0;
+        text-align: center;
+      }
+      .footer {
+        background-color: #f9fafb;
+        padding: 20px;
+        text-align: center;
+        color: #6b7280;
+        font-size: 14px;
+      }
+      .team-members {
+        margin: 15px 0;
+      }
+      .member-tag {
+        display: inline-block;
+        background-color: #e0e7ff;
+        color: #3730a3;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
+        <h1>🎵 JCSGO Arise Worship Team</h1>
+      </div>
+
+      <div class="content">
+        <div class="notification-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </div>
+
+        <h2 style="text-align: center; color: #1f2937; margin-bottom: 20px;">You've been assigned to an event!</h2>
+
+        <p style="text-align: center; color: #6b7280; margin-bottom: 30px;">
+          Hi <strong>{{ member.name }}</strong>, you have been assigned to participate in a worship event.
+        </p>
+
+        <div class="event-details">
+          <div class="event-title">{{ event.title }}</div>
+          <div class="event-info">📅 Date: {{ event.date|date:'F d, Y' }}</div>
+          <div class="event-info">🕐 Time: {{ event.start_time|time:'g:i A' }} - {{ event.end_time|time:'g:i A' }}</div>
+          {% if event.description %}
+            <div class="event-info">📝 Description: {{ event.description }}</div>
+          {% endif %}
+        </div>
+
+        {% if assigned_members %}
+          <div class="team-members">
+            <h3 style="color: #1f2937; margin-bottom: 10px;">Team Members:</h3>
+            {% for assignment in assigned_members %}
+              <span class="member-tag">{{ assignment.member.name }} ({{ assignment.get_assigned_role_display }})</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div style="text-align: center;">
+          <a href="{{ app_url }}" class="cta-button">View Event Details</a>
+        </div>
+
+        <p style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 30px;">Please check the worship calendar for more details and updates.</p>
+      </div>
+
+      <div class="footer">
+        <p>This is an automated notification from JCSGO Arise Worship Team</p>
+        <p>If you have any questions, please contact your worship leader.</p>
+      </div>
+    </div>
+  </body>
+</html>

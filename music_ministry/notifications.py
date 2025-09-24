@@ -8,13 +8,23 @@ def create_event_assignment_notifications(event, assigned_members):
     """
     notifications = []
     
+    # Ensure we have a fresh event object from the database
+    try:
+        event_obj = Event.objects.get(id=event.id)
+    except Event.DoesNotExist:
+        return notifications
+    
     for assignment in assigned_members:
+        # Format date and time safely
+        date_str = event_obj.date.strftime("%B %d, %Y") if hasattr(event_obj.date, 'strftime') else str(event_obj.date)
+        time_str = event_obj.start_time.strftime("%I:%M %p") if hasattr(event_obj.start_time, 'strftime') else str(event_obj.start_time)
+        
         notification = Notification.objects.create(
             recipient=assignment.member,
             notification_type='event_assignment',
-            title=f'You have been assigned to {event.title}',
-            message=f'You have been assigned as {assignment.get_assigned_role_display()} for the event "{event.title}" on {event.date.strftime("%B %d, %Y")} at {event.start_time.strftime("%I:%M %p")}.',
-            event=event
+            title=f'You have been assigned to {event_obj.title}',
+            message=f'You have been assigned as {assignment.get_assigned_role_display()} for the event "{event_obj.title}" on {date_str} at {time_str}.',
+            event=event_obj
         )
         notifications.append(notification)
     

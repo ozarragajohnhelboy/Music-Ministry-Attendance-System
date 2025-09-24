@@ -13,6 +13,7 @@ import json
 from .models import User, Member, Event, EventAssignment, Lineup, Song, Notification
 from .forms import CustomUserCreationForm, EventForm, EventAssignmentForm, LineupForm, SongForm, LineupApprovalForm
 from .notifications import create_event_assignment_notifications, create_lineup_approval_notifications, get_unread_notifications_count, mark_notification_as_read, mark_all_notifications_as_read
+from .email_service import send_event_assignment_emails, send_lineup_approval_emails
 
 
 def is_admin(user):
@@ -222,7 +223,11 @@ def add_event(request):
         # Create notifications for assigned members
         assigned_members = EventAssignment.objects.filter(event=event)
         if assigned_members.exists():
+            # Refresh event from database to ensure proper date/time objects
+            event.refresh_from_db()
             create_event_assignment_notifications(event, assigned_members)
+            # Send email notifications to all assigned members
+            send_event_assignment_emails(event)
         
         messages.success(request, 'Event created successfully with team assignments!')
         return redirect('dashboard')
@@ -292,10 +297,14 @@ def assign_members(request, event_id):
                         is_backup=True
                     )
         
-        # Create notifications for newly assigned members
-        assigned_members = EventAssignment.objects.filter(event=event)
-        if assigned_members.exists():
-            create_event_assignment_notifications(event, assigned_members)
+            # Create notifications for newly assigned members
+            assigned_members = EventAssignment.objects.filter(event=event)
+            if assigned_members.exists():
+                # Refresh event from database to ensure proper date/time objects
+                event.refresh_from_db()
+                create_event_assignment_notifications(event, assigned_members)
+                # Send email notifications to all assigned members
+                send_event_assignment_emails(event)
         
         messages.success(request, 'Member assignments updated successfully!')
         return redirect('dashboard')
@@ -541,9 +550,12 @@ def approve_lineup(request, event_id):
             form.save()
             status = form.cleaned_data['status']
             
-            # Create notifications for all assigned members
-            if status in ['approved', 'rejected']:
-                create_lineup_approval_notifications(lineup, status)
+        # Create notifications for all assigned members
+        if status in ['approved', 'rejected']:
+            create_lineup_approval_notifications(lineup, status)
+            # Send email notifications when lineup is approved
+            if status == 'approved':
+                send_lineup_approval_emails(lineup)
             
             if status == 'approved':
                 messages.success(request, 'Lineup approved successfully!')
@@ -643,3 +655,19 @@ def api_delete_notification(request, notification_id):
         return JsonResponse({'success': True})
     except Notification.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Notification not found'})
+
+
+@login_required
+@user_passes_test(is_admin)
+def test_email(request):
+    """
+    Test email functionality for admin users.
+    """
+    from .email_service import send_test_email
+    
+    if send_test_email():
+        messages.success(request, 'Test email sent successfully! Check your email inbox.')
+    else:
+        messages.error(request, 'Failed to send test email. Check email configuration.')
+    
+    return redirect('dashboard')

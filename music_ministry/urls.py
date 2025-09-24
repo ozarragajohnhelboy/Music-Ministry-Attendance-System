@@ -18,4 +18,5 @@ urlpatterns = [
     path('lineup/create/<int:event_id>/', views.create_lineup, name='create_lineup'),
     path('lineup/edit/<int:event_id>/', views.edit_lineup, name='edit_lineup'),
     path('lineup/approve/<int:event_id>/', views.approve_lineup, name='approve_lineup'),
+    path('test-email/', views.test_email, name='test_email'),
 ]

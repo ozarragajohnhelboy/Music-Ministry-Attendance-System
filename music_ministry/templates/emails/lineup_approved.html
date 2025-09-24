@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lineup Approved Notification</title>
+    <style>
+      body {
+        font-family: 'Inter', Arial, sans-serif;
+        line-height: 1.6;
+        color: #374151;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f9fafb;
+      }
+      .email-container {
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .header {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        color: white;
+        padding: 30px 20px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 700;
+      }
+      .content {
+        padding: 30px 20px;
+      }
+      .notification-icon {
+        width: 60px;
+        height: 60px;
+        background-color: #ecfdf5;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+      }
+      .notification-icon svg {
+        width: 30px;
+        height: 30px;
+        color: #059669;
+      }
+      .event-details {
+        background-color: #f3f4f6;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .event-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 10px;
+      }
+      .event-info {
+        color: #6b7280;
+        margin: 5px 0;
+      }
+      .lineup-details {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .lineup-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #059669;
+        margin-bottom: 15px;
+      }
+      .song-item {
+        background-color: white;
+        border-radius: 6px;
+        padding: 12px;
+        margin: 8px 0;
+        border-left: 3px solid #059669;
+      }
+      .song-type {
+        font-size: 12px;
+        color: #6b7280;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      .song-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin: 4px 0;
+      }
+      .cta-button {
+        display: inline-block;
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        color: white;
+        text-decoration: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin: 20px 0;
+        text-align: center;
+      }
+      .footer {
+        background-color: #f9fafb;
+        padding: 20px;
+        text-align: center;
+        color: #6b7280;
+        font-size: 14px;
+      }
+      .status-badge {
+        display: inline-block;
+        background-color: #dcfce7;
+        color: #166534;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
+        <h1>🎵 JCSGO Arise Worship Team</h1>
+      </div>
+
+      <div class="content">
+        <div class="notification-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+
+        <h2 style="text-align: center; color: #1f2937; margin-bottom: 20px;">Lineup Approved! 🎉</h2>
+
+        <p style="text-align: center; color: #6b7280; margin-bottom: 30px;">
+          Hi <strong>{{ member.name }}</strong>, the lineup for an upcoming event has been approved.
+        </p>
+
+        <div class="event-details">
+          <div class="event-title">{{ event.title }}</div>
+          <div class="event-info">📅 Date: {{ event.date|date:'F d, Y' }}</div>
+          <div class="event-info">🕐 Time: {{ event.start_time|time:'g:i A' }} - {{ event.end_time|time:'g:i A' }}</div>
+          <div class="event-info">
+            ✅ Status: <span class="status-badge">Approved</span>
+          </div>
+        </div>
+
+        {% if lineup.songs.all %}
+          <div class="lineup-details">
+            <div class="lineup-title">🎼 {{ lineup.get_set_list_type_display }}</div>
+            {% for song in lineup.songs.all %}
+              <div class="song-item">
+                <div class="song-type">{{ song.get_song_type_display }}</div>
+                <div class="song-title">{{ song.title }}</div>
+                {% if song.song_link %}
+                  <div style="margin-top: 4px;">
+                    <a href="{{ song.song_link }}" style="color: #059669; text-decoration: none; font-size: 12px;">🔗 Listen</a>
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div style="text-align: center;">
+          <a href="{{ app_url }}" class="cta-button">View Full Lineup</a>
+        </div>
+
+        <p style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 30px;">Please review the approved lineup and prepare for the event.</p>
+      </div>
+
+      <div class="footer">
+        <p>This is an automated notification from JCSGO Arise Worship Team</p>
+        <p>If you have any questions, please contact your worship leader.</p>
+      </div>
+    </div>
+  </body>
+</html>
