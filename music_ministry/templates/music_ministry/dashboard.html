@@ -33,13 +33,6 @@
           </svg>Add Event
         </button>
       {% endif %}
-      {% if user.role == 'admin' %}
-        <a href="{% url 'test_email' %}" class="btn btn-secondary">
-          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>Test Email
-        </a>
-      {% endif %}
     </div>
 
     <div id="calendar" class="tab-content active">
@@ -95,7 +88,7 @@
               <div class="event-actions">
                 <button class="btn btn-secondary view-details-btn" data-event-id="{{ event.id }}">View Details</button>
                 {% if user.role == 'admin' %}
-                  <button class="btn btn-primary assign-members-btn" data-event-id="{{ event.id }}">Assign Members</button>
+                  <button class="btn btn-primary assign-members-btn" data-event-id="{{ event.id }}">Edit</button>
                   <button class="btn btn-danger btn-icon delete-event-btn" data-event-id="{{ event.id }}" data-event-title="{{ event.title }}" title="Delete Event">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -110,6 +103,12 @@
             {% endif %}
 
             <div class="event-assignments hidden">
+              {% if event.notes %}
+                <div style="margin-bottom: 1.5rem; padding: 1rem; background-color: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                  <h4 style="margin: 0 0 0.5rem 0; color: #1e40af; font-size: 0.9rem; font-weight: 600;">📝 Admin Notes</h4>
+                  <p style="margin: 0; color: var(--text-gray); white-space: pre-line;">{{ event.notes }}</p>
+                </div>
+              {% endif %}
               {% regroup event.assignments.all by assigned_role as role_groups %}
               {% for role_group in role_groups %}
                 <div class="assignment-group">
@@ -256,6 +255,12 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label">Admin Notes</label>
+            <textarea name="notes" class="form-input" rows="3" placeholder="Add notes or instructions for assigned members..."></textarea>
+            <small style="color: var(--text-gray); font-size: 0.875rem;">Optional: Add notes or instructions for assigned members</small>
+          </div>
+
+          <div class="form-group">
             <label class="form-label">Worship Leaders</label>
             <select name="worship_leaders" class="form-input form-select" multiple size="3">
               {% for leader in worship_leaders %}
@@ -317,7 +322,12 @@
 
           <div class="modal-buttons">
             <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-            <button type="submit" class="btn btn-primary">Create Event</button>
+            <button type="submit" class="btn btn-primary" id="createEventBtn">
+              <span class="btn-text">Create Event</span>
+              <span class="btn-spinner" style="display: none;">
+                <div class="button-spinner"></div>
+              </span>
+            </button>
           </div>
         </form>
       </div>
@@ -328,12 +338,18 @@
   {% if user.role == 'admin' %}
     <div id="assignMembersModal" class="modal">
       <div class="modal-content">
-        <h2>Assign Members</h2>
+        <h2>Edit Members</h2>
         <p id="assignEventTitle" style="color: var(--text-gray); margin-bottom: 2rem;"></p>
 
         <form id="assignMembersForm" method="post" action="">
           {% csrf_token %}
           <input type="hidden" id="assignEventId" name="event_id" value="" />
+
+          <div class="form-group">
+            <label class="form-label">Admin Notes</label>
+            <textarea name="notes" id="editNotesField" class="form-input" rows="3" placeholder="Add notes or instructions for assigned members..."></textarea>
+            <small style="color: var(--text-gray); font-size: 0.875rem;">Optional: Add notes or instructions for assigned members</small>
+          </div>
 
           <div class="form-grid">
             <div class="form-group">
@@ -394,7 +410,12 @@
 
           <div class="modal-buttons">
             <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save Assignments</button>
+            <button type="submit" class="btn btn-primary" id="saveChangesBtn">
+              <span class="btn-text">Save Changes</span>
+              <span class="btn-spinner" style="display: none;">
+                <div class="button-spinner"></div>
+              </span>
+            </button>
           </div>
         </form>
       </div>
@@ -479,6 +500,40 @@
         // The page will redirect after successful deletion, so the calendar will refresh
       });
 
+      // Handle loading effects for forms
+      const assignMembersForm = document.getElementById('assignMembersForm');
+      const createEventForm = document.querySelector('#addEventModal form');
+      
+      if (assignMembersForm) {
+        assignMembersForm.addEventListener('submit', function(e) {
+          console.log('Edit members form submitted');
+          const saveBtn = document.getElementById('saveChangesBtn');
+          if (saveBtn) {
+            console.log('Adding loading class to save button');
+            saveBtn.classList.add('loading');
+          } else {
+            console.log('Save button not found');
+          }
+        });
+      } else {
+        console.log('Assign members form not found');
+      }
+      
+      if (createEventForm) {
+        createEventForm.addEventListener('submit', function(e) {
+          console.log('Create event form submitted');
+          const createBtn = document.getElementById('createEventBtn');
+          if (createBtn) {
+            console.log('Adding loading class to create button');
+            createBtn.classList.add('loading');
+          } else {
+            console.log('Create button not found');
+          }
+        });
+      } else {
+        console.log('Create event form not found');
+      }
+
       // Function to refresh calendar after deletion
       window.refreshCalendarAfterDeletion = function() {
         if (window.calendarManager) {
@@ -511,6 +566,51 @@
       });
     });
   </script>
+{% endblock %}
+
+{% block extra_css %}
+  <style>
+    /* Button loading spinner styles */
+    .button-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-top: 2px solid #ffffff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-left: 8px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .btn-spinner {
+      display: none;
+    }
+
+    .btn.loading .btn-text {
+      display: none;
+    }
+
+    .btn.loading .btn-spinner {
+      display: inline-block;
+    }
+
+    .btn.loading {
+      pointer-events: none;
+      opacity: 0.8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn.loading .button-spinner {
+      margin-left: 0;
+    }
+  </style>
 {% endblock %}
 
 {% block extra_js %}

@@ -133,7 +133,8 @@ def add_event(request):
             date=date,
             start_time=start_time,
             end_time=end_time,
-            description=request.POST.get('description', '')
+            description=request.POST.get('description', ''),
+            notes=request.POST.get('notes', '')
         )
         
         # Handle multiple worship leaders
@@ -243,6 +244,12 @@ def assign_members(request, event_id):
     
     if request.method == 'POST':
         with transaction.atomic():
+            # Update notes if provided, otherwise keep existing notes
+            notes = request.POST.get('notes', '').strip()
+            if notes:  # Only update if notes are provided (not blank)
+                event.notes = notes
+                event.save()
+            
             EventAssignment.objects.filter(event=event).delete()
             
             role_fields = {
@@ -656,18 +663,3 @@ def api_delete_notification(request, notification_id):
     except Notification.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Notification not found'})
 
-
-@login_required
-@user_passes_test(is_admin)
-def test_email(request):
-    """
-    Test email functionality for admin users.
-    """
-    from .email_service import send_test_email
-    
-    if send_test_email():
-        messages.success(request, 'Test email sent successfully! Check your email inbox.')
-    else:
-        messages.error(request, 'Failed to send test email. Check email configuration.')
-    
-    return redirect('dashboard')

@@ -31,8 +31,8 @@ DEFAULT_FROM_EMAIL=your-actual-email@gmail.com
 ### Step 4: Test Email Configuration
 
 1. Login as admin
-2. Click "Test Email" button on dashboard
-3. Check your email inbox
+2. Test email functionality by creating an event and assigning members
+3. Check your email inbox for assignment notifications
 
 ## 🔒 Security Notes
 
@@ -81,6 +81,6 @@ export DEFAULT_FROM_EMAIL=your-email@gmail.com
 # Test environment variables
 python manage.py shell -c "import os; print(os.getenv('EMAIL_HOST_USER'))"
 
-# Test email sending
-python manage.py shell -c "from music_ministry.email_service import send_test_email; send_test_email()"
+# Test email sending (create a test event and assign members to trigger email notifications)
+python manage.py shell -c "from django.core.mail import send_mail; send_mail('Test', 'Test message', 'from@example.com', ['to@example.com'])"
 ```

@@ -263,7 +263,7 @@ if (typeof CalendarManager === 'undefined') {
     }
 
     showAssignMembersModal(eventId) {
-        console.log('Showing assign members modal for event:', eventId);
+        console.log('Showing edit members modal for event:', eventId);
 
         // Find the modal and form elements
         const modal = document.getElementById('assignMembersModal');
@@ -279,7 +279,13 @@ if (typeof CalendarManager === 'undefined') {
         eventIdInput.value = eventId;
 
         // Update the form action URL
-        form.action = `/event/${eventId}/assign/`;
+        form.action = `/assign-members/${eventId}/`;
+
+        // Clear all form selections first
+        this.clearFormSelections();
+
+        // Pre-populate form with existing assignments
+        this.populateFormWithExistingAssignments(eventId);
 
         // Show the modal
         modal.classList.add('active');
@@ -290,7 +296,106 @@ if (typeof CalendarManager === 'undefined') {
             const eventItem = document.querySelector(`[data-event-id="${eventId}"]`).closest('.event-item');
             const titleElement = eventItem?.querySelector('.event-title');
             if (titleElement) {
-                eventTitle.textContent = `Assigning members to: ${titleElement.textContent}`;
+                    eventTitle.textContent = `Editing members for: ${titleElement.textContent}`;
+                }
+            }
+        }
+
+        clearFormSelections() {
+            // Clear all select elements in the form
+            const selects = document.querySelectorAll('#assignMembersForm select');
+            selects.forEach(select => {
+                if (select.multiple) {
+                    // For multiple select elements, clear all selections
+                    Array.from(select.options).forEach(option => option.selected = false);
+                } else {
+                    // For single select elements, select the first empty option
+                    select.selectedIndex = 0;
+                }
+            });
+
+            // Clear notes field
+            const notesField = document.getElementById('editNotesField');
+            if (notesField) {
+                notesField.value = '';
+            }
+        }
+
+        populateFormWithExistingAssignments(eventId) {
+            // Find the event item and get existing assignments
+            const eventItem = document.querySelector(`[data-event-id="${eventId}"]`).closest('.event-item');
+            if (!eventItem) return;
+
+            // Populate notes field first
+            this.populateNotesField(eventItem);
+
+            const assignmentsSection = eventItem.querySelector('.event-assignments');
+            if (!assignmentsSection) return;
+
+            // Get all assignment groups
+            const assignmentGroups = assignmentsSection.querySelectorAll('.assignment-group');
+
+            assignmentGroups.forEach(group => {
+                const roleElement = group.querySelector('.assignment-role');
+                const membersElement = group.querySelector('.assignment-members');
+
+                if (!roleElement || !membersElement) return;
+
+                const role = roleElement.textContent.toLowerCase().replace(/\s+/g, '_');
+                const members = membersElement.querySelectorAll('.assignment-member');
+
+                // Map role names to form field names
+                const roleMapping = {
+                    'worship_leader': 'worship_leaders',
+                    'backup_worship_leader': 'backup_worship_leaders',
+                    'guitarist': 'guitarists',
+                    'keys': 'keys_player',
+                    'bassist': 'bass_player',
+                    'drummer': 'drummer'
+                };
+
+                const formFieldName = roleMapping[role];
+                if (!formFieldName) return;
+
+                const formField = document.querySelector(`select[name="${formFieldName}"]`);
+                if (!formField) return;
+
+                // Handle multiple select fields
+                if (formField.multiple) {
+                    members.forEach(memberElement => {
+                        const memberName = memberElement.textContent.replace(' (Backup)', '').trim();
+                        const option = Array.from(formField.options).find(opt => opt.textContent.trim() === memberName);
+                        if (option) {
+                            option.selected = true;
+                        }
+                    });
+                } else {
+                    // Handle single select fields
+                    if (members.length > 0) {
+                        const memberName = members[0].textContent.replace(' (Backup)', '').trim();
+                        const option = Array.from(formField.options).find(opt => opt.textContent.trim() === memberName);
+                        if (option) {
+                            option.selected = true;
+                        }
+                    }
+                }
+            });
+        }
+
+        populateNotesField(eventItem) {
+            // Find the notes in the event details
+            const assignmentsSection = eventItem.querySelector('.event-assignments');
+            if (!assignmentsSection) return;
+
+            // Look for the admin notes div
+            const notesDiv = assignmentsSection.querySelector('div[style*="border-left: 4px solid #3b82f6"]');
+            if (notesDiv) {
+                const notesText = notesDiv.querySelector('p');
+                if (notesText) {
+                    const notesField = document.getElementById('editNotesField');
+                    if (notesField) {
+                        notesField.value = notesText.textContent.trim();
+                    }
             }
         }
     }

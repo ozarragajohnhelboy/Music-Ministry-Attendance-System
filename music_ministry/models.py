@@ -38,6 +38,7 @@ class Event(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
     description = models.TextField(blank=True)
+    notes = models.TextField(blank=True, help_text="Admin notes for assigned members")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

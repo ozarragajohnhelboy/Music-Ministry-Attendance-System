@@ -1,5 +1,50 @@
 {% extends 'music_ministry/base.html' %}
 
+{% block extra_css %}
+  <style>
+    /* Button loading spinner styles */
+    .button-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-top: 2px solid #ffffff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-left: 8px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .btn-spinner {
+      display: none;
+    }
+
+    .btn.loading .btn-text {
+      display: none;
+    }
+
+    .btn.loading .btn-spinner {
+      display: inline-block;
+    }
+
+    .btn.loading {
+      pointer-events: none;
+      opacity: 0.8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn.loading .button-spinner {
+      margin-left: 0;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
   <div class="page-header">
     <h1 class="page-title">Create Lineup</h1>
@@ -118,7 +163,12 @@
 
       <div class="form-actions">
         <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
-        <button type="submit" class="btn btn-primary">Create Lineup</button>
+        <button type="submit" class="btn btn-primary" id="createLineupBtn">
+          <span class="btn-text">Create Lineup</span>
+          <span class="btn-spinner" style="display: none;">
+            <div class="button-spinner"></div>
+          </span>
+        </button>
       </div>
     </form>
   </div>
@@ -181,6 +231,25 @@
         `;
         customSongs.appendChild(newSongItem);
       });
+    });
+
+    // Handle loading effect for form submission
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.querySelector('.lineup-form');
+      if (form) {
+        form.addEventListener('submit', function(e) {
+          console.log('Create lineup form submitted');
+          const createBtn = document.getElementById('createLineupBtn');
+          if (createBtn) {
+            console.log('Adding loading class to create lineup button');
+            createBtn.classList.add('loading');
+          } else {
+            console.log('Create lineup button not found');
+          }
+        });
+      } else {
+        console.log('Create lineup form not found');
+      }
     });
   </script>
 {% endblock %}

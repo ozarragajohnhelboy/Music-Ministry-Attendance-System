@@ -106,20 +106,3 @@ def send_lineup_approval_emails(lineup):
         logger.error(f"Failed to send lineup approval emails for lineup {lineup.id}: {str(e)}")
 
 
-def send_test_email():
-    """
-    Send a test email to verify email configuration.
-    """
-    try:
-        send_mail(
-            subject='Test Email from JCSGO Worship Team',
-            message='This is a test email to verify email configuration.',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[settings.DEFAULT_FROM_EMAIL],
-            fail_silently=False
-        )
-        logger.info("Test email sent successfully")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to send test email: {str(e)}")
-        return False
