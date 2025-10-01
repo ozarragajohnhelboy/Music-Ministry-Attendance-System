@@ -6,53 +6,69 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def send_event_assignment_emails(event):
+def send_event_assignment_emails(event, assigned_members=None, email_type='added'):
     """
-    Send email notifications to all members assigned to an event.
+    Send email notifications to members when they are assigned to or removed from an event.
     """
     try:
-        # Get all assigned members for this event
-        assignments = EventAssignment.objects.filter(event=event)
+        # If no specific members provided, get all assigned members (backward compatibility)
+        if assigned_members is None:
+            assignments = EventAssignment.objects.filter(event=event)
+            if not assignments.exists():
+                logger.info(f"No assigned members found for event: {event.title}")
+                return
+            assigned_members = [assignment.member for assignment in assignments]
+            email_type = 'added'  # Default to added for backward compatibility
         
-        if not assignments.exists():
-            logger.info(f"No assigned members found for event: {event.title}")
+        if not assigned_members:
+            logger.info(f"No members to send emails to for event: {event.title}")
             return
         
-        # Get all assigned members
-        assigned_members = [assignment.member for assignment in assignments]
+        # Prepare email data based on type
+        if email_type == 'added':
+            subject = f"Event Assignment: {event.title}"
+            plain_message = f"Hi {{member.name}}, you have been assigned to {event.title} on {event.date}."
+        elif email_type == 'removed':
+            subject = f"Event Assignment Removed: {event.title}"
+            plain_message = f"Hi {{member.name}}, you are no longer assigned to {event.title} on {event.date}."
+        else:
+            subject = f"Event Assignment: {event.title}"
+            plain_message = f"Hi {{member.name}}, you have been assigned to {event.title} on {event.date}."
         
-        # Prepare email data
-        subject = f"Event Assignment: {event.title}"
         app_url = getattr(settings, 'APP_URL', 'http://localhost:8000')
         
         for member in assigned_members:
             try:
+                # Get current assignments for the event (for template context)
+                current_assignments = EventAssignment.objects.filter(event=event)
+                
                 # Render email template
                 html_message = render_to_string('emails/event_assignment.html', {
                     'member': member,
                     'event': event,
-                    'assigned_members': assignments,
-                    'app_url': app_url
+                    'assigned_members': current_assignments,
+                    'app_url': app_url,
+                    'email_type': email_type
                 })
                 
                 # Send email
                 send_mail(
                     subject=subject,
-                    message=f"Hi {member.name}, you have been assigned to {event.title} on {event.date}.",
+                    message=plain_message.format(member=member),
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[member.email],
                     html_message=html_message,
                     fail_silently=False
                 )
                 
-                logger.info(f"Event assignment email sent to {member.name} ({member.email})")
+                logger.info(f"Event {email_type} email sent to {member.name} ({member.email})")
                 
             except Exception as e:
-                logger.error(f"Failed to send event assignment email to {member.name}: {str(e)}")
+                logger.error(f"Failed to send event {email_type} email to {member.name}: {str(e)}")
                 continue
                 
     except Exception as e:
-        logger.error(f"Failed to send event assignment emails for event {event.title}: {str(e)}")
+        logger.error(f"Failed to send event {email_type} emails for event {event.title}: {str(e)}")
 
 
 def send_lineup_approval_emails(lineup):

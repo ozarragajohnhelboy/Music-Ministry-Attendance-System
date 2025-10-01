@@ -248,7 +248,7 @@ def assign_members(request, event_id):
                 event.notes = notes
                 event.save()
             
-            # Get current assignments to preserve them if fields are empty
+            # Get current assignments to track changes
             current_assignments = EventAssignment.objects.filter(event=event)
             current_assignments_by_role = {}
             for assignment in current_assignments:
@@ -272,22 +272,37 @@ def assign_members(request, event_id):
                 'backup_worship_leaders': 'worship_leader'
             }
             
+            # Track changes for notifications
+            removed_members = []  # Members who were removed
+            added_members = []    # Members who were added
+            
             # Process each role field
             for field_name, role in role_fields.items():
                 if field_name in ['keys_player', 'drummer', 'bass_player']:
                     # Single select fields
                     member_id = request.POST.get(field_name)
                     if member_id:
-                        # User selected someone, update the assignment
-                        EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=False).delete()
+                        # User selected someone, check if it's different from current
+                        current_members = [a.member for a in current_assignments_by_role.get(role, {}).get('regular', [])]
+                        
                         try:
-                            member = Member.objects.get(id=member_id)
-                            EventAssignment.objects.create(
-                                event=event,
-                                member=member,
-                                assigned_role=role,
-                                is_backup=False
-                            )
+                            new_member = Member.objects.get(id=member_id)
+                            
+                            # Check if assignment changed
+                            if not current_members or current_members[0] != new_member:
+                                # Assignment changed
+                                if current_members:
+                                    removed_members.extend(current_members)
+                                added_members.append(new_member)
+                                
+                                # Update the assignment
+                                EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=False).delete()
+                                EventAssignment.objects.create(
+                                    event=event,
+                                    member=new_member,
+                                    assigned_role=role,
+                                    is_backup=False
+                                )
                         except Member.DoesNotExist:
                             pass
                     # If no member selected, keep existing assignments (don't delete)
@@ -295,8 +310,71 @@ def assign_members(request, event_id):
                     # Multiple select fields
                     member_ids = request.POST.getlist(field_name)
                     if member_ids:  # If something was selected
-                        # User selected members, update the assignments
-                        EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=False).delete()
+                        # User selected members, check if it's different from current
+                        current_members = [a.member for a in current_assignments_by_role.get(role, {}).get('regular', [])]
+                        current_member_ids = {m.id for m in current_members}
+                        new_member_ids = {int(mid) for mid in member_ids}
+                        
+                        # Find removed and added members
+                        removed_ids = current_member_ids - new_member_ids
+                        added_ids = new_member_ids - current_member_ids
+                        
+                        if removed_ids or added_ids:
+                            # Assignments changed
+                            for member in current_members:
+                                if member.id in removed_ids:
+                                    removed_members.append(member)
+                            
+                            for member_id in added_ids:
+                                try:
+                                    member = Member.objects.get(id=member_id)
+                                    added_members.append(member)
+                                except Member.DoesNotExist:
+                                    pass
+                            
+                            # Update the assignments
+                            EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=False).delete()
+                            for member_id in member_ids:
+                                try:
+                                    member = Member.objects.get(id=member_id)
+                                    EventAssignment.objects.create(
+                                        event=event,
+                                        member=member,
+                                        assigned_role=role,
+                                        is_backup=False
+                                    )
+                                except Member.DoesNotExist:
+                                    pass
+                    # If nothing was selected, keep existing assignments (don't delete)
+            
+            # Process backup fields
+            for field_name, role in backup_fields.items():
+                member_ids = request.POST.getlist(field_name)
+                if member_ids:  # If something was selected
+                    # User selected backup members, check if it's different from current
+                    current_backup_members = [a.member for a in current_assignments_by_role.get(role, {}).get('backup', [])]
+                    current_backup_member_ids = {m.id for m in current_backup_members}
+                    new_backup_member_ids = {int(mid) for mid in member_ids}
+                    
+                    # Find removed and added backup members
+                    removed_backup_ids = current_backup_member_ids - new_backup_member_ids
+                    added_backup_ids = new_backup_member_ids - current_backup_member_ids
+                    
+                    if removed_backup_ids or added_backup_ids:
+                        # Backup assignments changed
+                        for member in current_backup_members:
+                            if member.id in removed_backup_ids:
+                                removed_members.append(member)
+                        
+                        for member_id in added_backup_ids:
+                            try:
+                                member = Member.objects.get(id=member_id)
+                                added_members.append(member)
+                            except Member.DoesNotExist:
+                                pass
+                        
+                        # Update the backup assignments
+                        EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=True).delete()
                         for member_id in member_ids:
                             try:
                                 member = Member.objects.get(id=member_id)
@@ -304,39 +382,26 @@ def assign_members(request, event_id):
                                     event=event,
                                     member=member,
                                     assigned_role=role,
-                                    is_backup=False
+                                    is_backup=True
                                 )
                             except Member.DoesNotExist:
                                 pass
-                    # If nothing was selected, keep existing assignments (don't delete)
-            
-            # Process backup fields
-            for field_name, role in backup_fields.items():
-                member_ids = request.POST.getlist(field_name)
-                if member_ids:  # If something was selected
-                    # User selected backup members, update the assignments
-                    EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=True).delete()
-                    for member_id in member_ids:
-                        try:
-                            member = Member.objects.get(id=member_id)
-                            EventAssignment.objects.create(
-                                event=event,
-                                member=member,
-                                assigned_role=role,
-                                is_backup=True
-                            )
-                        except Member.DoesNotExist:
-                            pass
                 # If nothing was selected, keep existing backup assignments (don't delete)
         
-            # Create notifications for newly assigned members
-            assigned_members = EventAssignment.objects.filter(event=event)
-            if assigned_members.exists():
+            # Send notifications only to members whose assignments changed
+            if removed_members or added_members:
                 # Refresh event from database to ensure proper date/time objects
                 event.refresh_from_db()
-                create_event_assignment_notifications(event, assigned_members)
-                # Send email notifications to all assigned members
-                send_event_assignment_emails(event)
+                
+                # Send notifications to removed members
+                if removed_members:
+                    create_event_assignment_notifications(event, removed_members, notification_type='removed')
+                    send_event_assignment_emails(event, removed_members, email_type='removed')
+                
+                # Send notifications to added members
+                if added_members:
+                    create_event_assignment_notifications(event, added_members, notification_type='added')
+                    send_event_assignment_emails(event, added_members, email_type='added')
         
         messages.success(request, 'Member assignments updated successfully!')
         return redirect('dashboard')
