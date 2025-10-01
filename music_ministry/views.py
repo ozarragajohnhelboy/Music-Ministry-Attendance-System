@@ -74,7 +74,6 @@ def dashboard(request):
     keys_players = Member.objects.filter(musician_role='keys', is_active=True)
     drummers = Member.objects.filter(musician_role='drummer', is_active=True)
     bassists = Member.objects.filter(musician_role='bassist', is_active=True)
-    vocalists = Member.objects.filter(musician_role='vocalist', is_active=True)
     
     current_member = None
     unread_notifications_count = 0
@@ -112,7 +111,6 @@ def dashboard(request):
         'keys_players': keys_players,
         'drummers': drummers,
         'bassists': bassists,
-        'vocalists': vocalists,
         'events_with_lineups': events_with_lineups,
         'unread_notifications_count': unread_notifications_count,
         'can_create_events': can_create_events,
@@ -250,25 +248,38 @@ def assign_members(request, event_id):
                 event.notes = notes
                 event.save()
             
-            EventAssignment.objects.filter(event=event).delete()
+            # Get current assignments to preserve them if fields are empty
+            current_assignments = EventAssignment.objects.filter(event=event)
+            current_assignments_by_role = {}
+            for assignment in current_assignments:
+                role = assignment.assigned_role
+                if role not in current_assignments_by_role:
+                    current_assignments_by_role[role] = {'regular': [], 'backup': []}
+                if assignment.is_backup:
+                    current_assignments_by_role[role]['backup'].append(assignment)
+                else:
+                    current_assignments_by_role[role]['regular'].append(assignment)
             
             role_fields = {
                 'worship_leaders': 'worship_leader',
                 'guitarists': 'guitarist', 
                 'keys_player': 'keys',
                 'drummer': 'drummer',
-                'bass_player': 'bassist',
-                'vocalists': 'vocalist'
+                'bass_player': 'bassist'
             }
             
             backup_fields = {
                 'backup_worship_leaders': 'worship_leader'
             }
             
+            # Process each role field
             for field_name, role in role_fields.items():
                 if field_name in ['keys_player', 'drummer', 'bass_player']:
+                    # Single select fields
                     member_id = request.POST.get(field_name)
                     if member_id:
+                        # User selected someone, update the assignment
+                        EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=False).delete()
                         try:
                             member = Member.objects.get(id=member_id)
                             EventAssignment.objects.create(
@@ -279,8 +290,32 @@ def assign_members(request, event_id):
                             )
                         except Member.DoesNotExist:
                             pass
+                    # If no member selected, keep existing assignments (don't delete)
                 else:
+                    # Multiple select fields
                     member_ids = request.POST.getlist(field_name)
+                    if member_ids:  # If something was selected
+                        # User selected members, update the assignments
+                        EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=False).delete()
+                        for member_id in member_ids:
+                            try:
+                                member = Member.objects.get(id=member_id)
+                                EventAssignment.objects.create(
+                                    event=event,
+                                    member=member,
+                                    assigned_role=role,
+                                    is_backup=False
+                                )
+                            except Member.DoesNotExist:
+                                pass
+                    # If nothing was selected, keep existing assignments (don't delete)
+            
+            # Process backup fields
+            for field_name, role in backup_fields.items():
+                member_ids = request.POST.getlist(field_name)
+                if member_ids:  # If something was selected
+                    # User selected backup members, update the assignments
+                    EventAssignment.objects.filter(event=event, assigned_role=role, is_backup=True).delete()
                     for member_id in member_ids:
                         try:
                             member = Member.objects.get(id=member_id)
@@ -288,21 +323,11 @@ def assign_members(request, event_id):
                                 event=event,
                                 member=member,
                                 assigned_role=role,
-                                is_backup=False
+                                is_backup=True
                             )
                         except Member.DoesNotExist:
                             pass
-            
-            for field_name, role in backup_fields.items():
-                member_ids = request.POST.getlist(field_name)
-                for member_id in member_ids:
-                    member = get_object_or_404(Member, id=member_id)
-                    EventAssignment.objects.create(
-                        event=event,
-                        member=member,
-                        assigned_role=role,
-                        is_backup=True
-                    )
+                # If nothing was selected, keep existing backup assignments (don't delete)
         
             # Create notifications for newly assigned members
             assigned_members = EventAssignment.objects.filter(event=event)
@@ -324,6 +349,63 @@ def assign_members(request, event_id):
         'form': form,
         'current_assignments': current_assignments
     })
+
+
+@login_required
+@user_passes_test(is_admin)
+def get_event_assignments(request, event_id):
+    """API endpoint to get current assignments for an event"""
+    event = get_object_or_404(Event, id=event_id)
+    current_assignments = EventAssignment.objects.filter(event=event)
+    
+    # Group assignments by role
+    assignments_data = {}
+    for assignment in current_assignments:
+        role = assignment.assigned_role
+        if role not in assignments_data:
+            assignments_data[role] = {'regular': [], 'backup': []}
+        
+        member_data = {
+            'id': assignment.member.id,
+            'name': assignment.member.name
+        }
+        
+        if assignment.is_backup:
+            assignments_data[role]['backup'].append(member_data)
+        else:
+            assignments_data[role]['regular'].append(member_data)
+    
+    # Map roles to form field names
+    role_to_field_mapping = {
+        'worship_leader': 'worship_leaders',
+        'guitarist': 'guitarists',
+        'keys': 'keys_player',
+        'drummer': 'drummer',
+        'bassist': 'bass_player'
+    }
+    
+    # Prepare response data
+    response_data = {
+        'notes': event.notes or '',
+        'assignments': {}
+    }
+    
+    for role, assignments in assignments_data.items():
+        field_name = role_to_field_mapping.get(role)
+        if field_name:
+            if field_name in ['keys_player', 'drummer', 'bass_player']:
+                # Single select fields
+                if assignments['regular']:
+                    response_data['assignments'][field_name] = assignments['regular'][0]['id']
+            else:
+                # Multiple select fields
+                response_data['assignments'][field_name] = [m['id'] for m in assignments['regular']]
+        
+        # Handle backup fields
+        if role == 'worship_leader' and assignments['backup']:
+            response_data['assignments']['backup_worship_leaders'] = [m['id'] for m in assignments['backup']]
+    
+    return JsonResponse(response_data)
 
 
 @login_required
