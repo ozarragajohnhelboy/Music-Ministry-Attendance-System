@@ -23,7 +23,14 @@
         <div class="container">
           <div class="header-content">
             <a href="{% url 'dashboard' %}" class="logo">JCSGO Arise Worship Team</a>
-            <nav class="nav-menu"></nav>
+            <nav class="nav-menu">
+              <a href="{% url 'dashboard' %}" class="nav-link">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                </svg>
+                Dashboard
+              </a>
+            </nav>
             <div class="user-menu">
               {% if user.role == 'member' %}
                 <div class="notification-bell">
@@ -43,7 +50,6 @@
                       {% endif %}
                     </div>
                     <div class="notification-list" id="notificationList">
-                      <!-- Notifications will be loaded here -->
                     </div>
                   </div>
                   <div class="notification-overlay" id="notificationOverlay"></div>
@@ -80,17 +86,14 @@
     </main>
 
     <script>
-      // Auto-fade alerts
       document.addEventListener('DOMContentLoaded', function () {
         const alerts = document.querySelectorAll('.alert')
       
         alerts.forEach(function (alert) {
-          // Auto-hide after 5 seconds
           setTimeout(function () {
             fadeOutAlert(alert)
           }, 5000)
       
-          // Click to dismiss
           alert.addEventListener('click', function () {
             fadeOutAlert(alert)
           })
@@ -105,7 +108,6 @@
           }, 500)
         }
 
-        // Notification functionality
         const notificationBtn = document.getElementById('notificationBtn');
         const notificationDropdown = document.getElementById('notificationDropdown');
         const notificationList = document.getElementById('notificationList');
@@ -113,27 +115,23 @@
         const notificationOverlay = document.getElementById('notificationOverlay');
 
         if (notificationBtn && notificationDropdown) {
-          // Toggle notification dropdown
           notificationBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             toggleNotificationDropdown();
           });
 
-          // Close dropdown when clicking overlay (mobile)
           if (notificationOverlay) {
             notificationOverlay.addEventListener('click', function() {
               closeNotificationDropdown();
             });
           }
 
-          // Close dropdown when clicking outside (desktop)
           document.addEventListener('click', function(e) {
             if (!notificationDropdown.contains(e.target) && !notificationBtn.contains(e.target)) {
               closeNotificationDropdown();
             }
           });
 
-          // Mark all as read
           if (markAllReadBtn) {
             markAllReadBtn.addEventListener('click', function() {
               markAllNotificationsAsRead();
@@ -141,7 +139,6 @@
           }
         }
 
-        // Toggle notification dropdown
         function toggleNotificationDropdown() {
           const isOpen = notificationDropdown.classList.contains('show');
           
@@ -152,7 +149,6 @@
           }
         }
 
-        // Open notification dropdown
         function openNotificationDropdown() {
           notificationDropdown.classList.add('show');
           if (notificationOverlay) {
@@ -161,7 +157,6 @@
           loadNotifications();
         }
 
-        // Close notification dropdown
         function closeNotificationDropdown() {
           notificationDropdown.classList.remove('show');
           if (notificationOverlay) {
@@ -169,7 +164,6 @@
           }
         }
 
-        // Load notifications via API
         function loadNotifications() {
           fetch('/api/notifications/')
             .then(response => response.json())
@@ -182,7 +176,6 @@
             });
         }
 
-        // Display notifications in the dropdown
         function displayNotifications(notifications) {
           if (!notifications || notifications.length === 0) {
             notificationList.innerHTML = '<div class="notification-item">No notifications</div>';
@@ -207,11 +200,9 @@
 
           notificationList.innerHTML = notificationHTML;
 
-          // Add click handlers for individual notifications
           const notificationItems = notificationList.querySelectorAll('.notification-item');
           notificationItems.forEach(item => {
             item.addEventListener('click', function(e) {
-              // Don't mark as read if clicking the delete button
               if (e.target.closest('.notification-delete-btn')) {
                 return;
               }
@@ -224,7 +215,6 @@
           });
         }
 
-        // Mark a single notification as read
         function markNotificationAsRead(notificationId, element) {
           fetch(`/api/notifications/${notificationId}/read/`, {
             method: 'POST',
@@ -435,8 +425,248 @@
           }
           return cookieValue;
         }
+
+        // Floating Chat Widget Functionality
+        const floatingChatBtn = document.getElementById('floatingChatBtn');
+        const floatingChatWindow = document.getElementById('floatingChatWindow');
+        const minimizeChatBtn = document.getElementById('minimizeChatBtn');
+        const floatingChatForm = document.getElementById('floatingChatForm');
+        const floatingChatInput = document.getElementById('floatingChatInput');
+        const floatingChatMessages = document.getElementById('floatingChatMessages');
+        const floatingSendBtn = document.getElementById('floatingSendBtn');
+        const chatBadge = document.getElementById('chatBadge');
+
+        if (floatingChatBtn && floatingChatWindow) {
+          // Toggle chat window
+          floatingChatBtn.addEventListener('click', function() {
+            toggleFloatingChat();
+          });
+
+          // Minimize chat window
+          if (minimizeChatBtn) {
+            minimizeChatBtn.addEventListener('click', function() {
+              closeFloatingChat();
+            });
+          }
+
+          // Send message
+          if (floatingChatForm) {
+            floatingChatForm.addEventListener('submit', function(e) {
+              e.preventDefault();
+              const message = floatingChatInput.value.trim();
+              if (message) {
+                sendFloatingMessage(message);
+              }
+            });
+          }
+
+          // Close chat when clicking outside
+          document.addEventListener('click', function(e) {
+            if (!floatingChatWindow.contains(e.target) && !floatingChatBtn.contains(e.target)) {
+              closeFloatingChat();
+            }
+          });
+        }
+
+        function toggleFloatingChat() {
+          const isOpen = floatingChatWindow.classList.contains('show');
+          if (isOpen) {
+            closeFloatingChat();
+          } else {
+            openFloatingChat();
+          }
+        }
+
+        function openFloatingChat() {
+          floatingChatWindow.classList.add('show');
+          floatingChatInput.focus();
+          hideChatBadge();
+        }
+
+        function closeFloatingChat() {
+          floatingChatWindow.classList.remove('show');
+        }
+
+        function showChatBadge() {
+          if (chatBadge) {
+            chatBadge.style.display = 'flex';
+          }
+        }
+
+        function hideChatBadge() {
+          if (chatBadge) {
+            chatBadge.style.display = 'none';
+          }
+        }
+
+        async function sendFloatingMessage(message) {
+          if (!message.trim()) return;
+
+          // Add user message to chat
+          addFloatingMessage(message, 'user');
+          
+          // Clear input and disable send button
+          floatingChatInput.value = '';
+          floatingSendBtn.disabled = true;
+
+          // Add typing indicator
+          const typingId = addFloatingTypingIndicator();
+
+          try {
+            const response = await fetch('/api/bible-chat/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+              },
+              body: JSON.stringify({ message: message })
+            });
+
+            const data = await response.json();
+
+            // Remove typing indicator
+            removeFloatingTypingIndicator(typingId);
+
+            if (response.ok) {
+              addFloatingMessage(data.response, 'bot');
+            } else {
+              addFloatingMessage('Sorry, I encountered an error. Please try again.', 'bot');
+            }
+          } catch (error) {
+            removeFloatingTypingIndicator(typingId);
+            addFloatingMessage('Sorry, I encountered an error. Please try again.', 'bot');
+          } finally {
+            floatingSendBtn.disabled = false;
+            floatingChatInput.focus();
+          }
+        }
+
+        function addFloatingMessage(text, sender) {
+          const messageDiv = document.createElement('div');
+          messageDiv.className = `message ${sender}-message`;
+          
+          const now = new Date();
+          const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          messageDiv.innerHTML = `
+            <div class="message-avatar">
+              ${sender === 'user' ? 
+                '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>' :
+                '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>'
+              }
+            </div>
+            <div class="message-content">
+              <div class="message-text">${formatFloatingMessage(text)}</div>
+              <div class="message-time">${timeString}</div>
+            </div>
+          `;
+
+          floatingChatMessages.appendChild(messageDiv);
+          floatingChatMessages.scrollTop = floatingChatMessages.scrollHeight;
+
+          // Show badge if chat is closed and it's a bot message
+          if (sender === 'bot' && !floatingChatWindow.classList.contains('show')) {
+            showChatBadge();
+          }
+        }
+
+        function formatFloatingMessage(text) {
+          return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+        }
+
+        function addFloatingTypingIndicator() {
+          const typingId = 'floating-typing-' + Date.now();
+          const typingDiv = document.createElement('div');
+          typingDiv.id = typingId;
+          typingDiv.className = 'message bot-message typing-indicator';
+          
+          typingDiv.innerHTML = `
+            <div class="message-avatar">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              </svg>
+            </div>
+            <div class="message-content">
+              <div class="message-text">
+                <span>Bible Assistant is typing</span>
+                <div class="typing-dots">
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                </div>
+              </div>
+            </div>
+          `;
+
+          floatingChatMessages.appendChild(typingDiv);
+          floatingChatMessages.scrollTop = floatingChatMessages.scrollHeight;
+          return typingId;
+        }
+
+        function removeFloatingTypingIndicator(typingId) {
+          const typingElement = document.getElementById(typingId);
+          if (typingElement) {
+            typingElement.remove();
+          }
+        }
       })
     </script>
+    <!-- Floating Bible Chat Button -->
+    <div class="floating-chat-widget">
+      <button id="floatingChatBtn" class="floating-chat-btn" title="Bible Chat">
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+        </svg>
+        <span class="chat-badge" id="chatBadge" style="display: none;">1</span>
+      </button>
+      
+      <!-- Chat Window -->
+      <div id="floatingChatWindow" class="floating-chat-window">
+        <div class="chat-window-header">
+          <div class="chat-window-title">
+            <h4>Bible Assistant</h4>
+            <span class="chat-status">Online</span>
+          </div>
+          <button id="minimizeChatBtn" class="minimize-btn">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+            </svg>
+          </button>
+        </div>
+        
+        <div class="chat-window-messages" id="floatingChatMessages">
+          <div class="message bot-message">
+            <div class="message-avatar">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              </svg>
+            </div>
+            <div class="message-content">
+              <div class="message-text">
+                Hello! I'm your Bible assistant. I can help you find verses, answer questions, and provide spiritual guidance. What would you like to know?
+              </div>
+              <div class="message-time">Just now</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="chat-window-input">
+          <form id="floatingChatForm" class="floating-chat-form">
+            <div class="chat-input-wrapper">
+              <input type="text" id="floatingChatInput" class="chat-input" placeholder="Ask me about the Bible..." autocomplete="off" />
+              <button type="submit" id="floatingSendBtn" class="chat-send-btn">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     {% block extra_js %}
 
     {% endblock %}

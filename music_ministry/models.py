@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from datetime import date
+import hashlib
 
 
 class User(AbstractUser):
@@ -131,3 +133,87 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"{self.recipient.name} - {self.title}"
+
+
+class BibleBook(models.Model):
+    TESTAMENT_CHOICES = [
+        ('old', 'Old Testament'),
+        ('new', 'New Testament'),
+    ]
+    
+    name = models.CharField(max_length=50)
+    testament = models.CharField(max_length=3, choices=TESTAMENT_CHOICES)
+    order = models.PositiveIntegerField()
+    
+    class Meta:
+        ordering = ['testament', 'order']
+    
+    def __str__(self):
+        return self.name
+
+
+class BibleVerse(models.Model):
+    book = models.ForeignKey(BibleBook, on_delete=models.CASCADE, related_name='verses')
+    chapter = models.PositiveIntegerField()
+    verse_number = models.PositiveIntegerField()
+    text = models.TextField()
+    
+    class Meta:
+        ordering = ['book__order', 'chapter', 'verse_number']
+        unique_together = ['book', 'chapter', 'verse_number']
+    
+    def __str__(self):
+        return f"{self.book.name} {self.chapter}:{self.verse_number}"
+    
+    @property
+    def reference(self):
+        return f"{self.book.name} {self.chapter}:{self.verse_number}"
+
+
+class DailyVerse(models.Model):
+    date = models.DateField(unique=True)
+    verse = models.ForeignKey(BibleVerse, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"Daily Verse for {self.date}: {self.verse.reference}"
+    
+    @classmethod
+    def get_todays_verse(cls):
+        """Get today's verse, creating one if it doesn't exist"""
+        today = date.today()
+        try:
+            return cls.objects.get(date=today)
+        except cls.DoesNotExist:
+            # Create a new daily verse based on today's date
+            # Use date hash to ensure same verse for same day
+            date_str = today.strftime('%Y-%m-%d')
+            date_hash = int(hashlib.md5(date_str.encode()).hexdigest(), 16)
+            
+            # Get total count of verses
+            total_verses = BibleVerse.objects.count()
+            if total_verses == 0:
+                return None
+            
+            # Use hash to select verse index
+            verse_index = date_hash % total_verses
+            verse = BibleVerse.objects.all()[verse_index]
+            
+            return cls.objects.create(date=today, verse=verse)
+
+
+class ChatMessage(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_messages')
+    message = models.TextField()
+    response = models.TextField()
+    is_bible_related = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Chat from {self.user.username} at {self.created_at}"

@@ -19,4 +19,7 @@ urlpatterns = [
     path('lineup/create/<int:event_id>/', views.create_lineup, name='create_lineup'),
     path('lineup/edit/<int:event_id>/', views.edit_lineup, name='edit_lineup'),
     path('lineup/approve/<int:event_id>/', views.approve_lineup, name='approve_lineup'),
+    path('bible-chatbot/', views.bible_chatbot, name='bible_chatbot'),
+    path('api/bible-chat/', views.api_bible_chat, name='api_bible_chat'),
+    path('api/daily-verse/', views.api_daily_verse, name='api_daily_verse'),
 ]

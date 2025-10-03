@@ -1,0 +1,599 @@
+{% extends 'music_ministry/base.html' %}
+{% load static %}
+
+{% block content %}
+  <div class="page-header">
+    <h1 class="page-title">🤖 Bible Chatbot</h1>
+    <p class="page-subtitle">Ask questions about the Bible and get spiritual guidance</p>
+  </div>
+
+  <div class="bible-chatbot-container">
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="chat-title">
+          <h3>Bible Assistant</h3>
+          <span class="chat-status">Online</span>
+        </div>
+        <div class="chat-actions">
+          <button id="clearChatBtn" class="btn btn-secondary btn-sm">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>Clear Chat
+          </button>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="message bot-message">
+          <div class="message-avatar">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <div class="message-content">
+            <div class="message-text">
+              Hello! I'm your Bible assistant. I can help you:<ul>
+                <li>Find specific Bible verses (e.g., "John 3:16")</li>
+                <li>Search by topic (e.g., "love", "faith", "hope")</li>
+                <li>Get random verses from Old or New Testament</li>
+                <li>Answer questions about the Bible</li>
+              </ul>What would you like to know?
+            </div>
+            <div class="message-time">Just now</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-container">
+        <form id="chatForm" class="chat-form">
+          <div class="chat-input-wrapper">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Ask me about the Bible..." autocomplete="off" />
+            <button type="submit" id="sendBtn" class="chat-send-btn">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="chat-sidebar">
+      <div class="sidebar-section">
+        <h4>Quick Actions</h4>
+        <div class="quick-actions">
+          <button class="quick-action-btn" data-action="random-verse">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>Random Verse
+          </button>
+          <button class="quick-action-btn" data-action="old-testament">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>Old Testament
+          </button>
+          <button class="quick-action-btn" data-action="new-testament">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>New Testament
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <h4>Popular Topics</h4>
+        <div class="topic-buttons">
+          <button class="topic-btn" data-topic="love">Love</button>
+          <button class="topic-btn" data-topic="faith">Faith</button>
+          <button class="topic-btn" data-topic="hope">Hope</button>
+          <button class="topic-btn" data-topic="peace">Peace</button>
+          <button class="topic-btn" data-topic="joy">Joy</button>
+          <button class="topic-btn" data-topic="grace">Grace</button>
+        </div>
+      </div>
+
+      {% if recent_messages %}
+        <div class="sidebar-section">
+          <h4>Recent Conversations</h4>
+          <div class="recent-messages">
+            {% for message in recent_messages %}
+              <div class="recent-message">
+                <div class="recent-message-text">{{ message.message|truncatechars:50 }}</div>
+                <div class="recent-message-time">{{ message.created_at|timesince }} ago</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_css %}
+  <style>
+    .bible-chatbot-container {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      height: calc(100vh - 200px);
+    }
+    
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .chat-title h3 {
+      margin: 0;
+      color: #1e293b;
+      font-size: 1.1rem;
+    }
+    
+    .chat-status {
+      font-size: 0.875rem;
+      color: #10b981;
+      font-weight: 500;
+    }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .message {
+      display: flex;
+      gap: 0.75rem;
+      max-width: 80%;
+    }
+    
+    .user-message {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+    
+    .bot-message {
+      align-self: flex-start;
+    }
+    
+    .message-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    
+    .user-message .message-avatar {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .bot-message .message-avatar {
+      background: #10b981;
+      color: white;
+    }
+    
+    .message-content {
+      flex: 1;
+    }
+    
+    .message-text {
+      background: #f1f5f9;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      line-height: 1.5;
+      color: #334155;
+    }
+    
+    .user-message .message-text {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .message-time {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 0.25rem;
+      text-align: right;
+    }
+    
+    .user-message .message-time {
+      text-align: left;
+    }
+    
+    .chat-input-container {
+      padding: 1rem 1.5rem;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+    }
+    
+    .chat-form {
+      width: 100%;
+    }
+    
+    .chat-input-wrapper {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    .chat-input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    
+    .chat-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .chat-send-btn {
+      padding: 0.75rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .chat-send-btn:hover {
+      background: #2563eb;
+    }
+    
+    .chat-send-btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    
+    .chat-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .sidebar-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .sidebar-section h4 {
+      margin: 0 0 1rem 0;
+      color: #1e293b;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    
+    .quick-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .quick-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+      color: #475569;
+    }
+    
+    .quick-action-btn:hover {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+    }
+    
+    .topic-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .topic-btn {
+      padding: 0.5rem 0.75rem;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.875rem;
+      color: #475569;
+    }
+    
+    .topic-btn:hover {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+    }
+    
+    .recent-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .recent-message {
+      padding: 0.75rem;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 3px solid #3b82f6;
+    }
+    
+    .recent-message-text {
+      font-size: 0.875rem;
+      color: #475569;
+      margin-bottom: 0.25rem;
+    }
+    
+    .recent-message-time {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: #f1f5f9;
+      border-radius: 12px;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+    
+    .typing-dots {
+      display: flex;
+      gap: 0.25rem;
+    }
+    
+    .typing-dot {
+      width: 4px;
+      height: 4px;
+      background: #64748b;
+      border-radius: 50%;
+      animation: typing 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dot:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+    .typing-dot:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+    
+    @keyframes typing {
+      0%,
+      80%,
+      100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .bible-chatbot-container {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    
+      .chat-sidebar {
+        order: -1;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const chatForm = document.getElementById('chatForm')
+      const chatInput = document.getElementById('chatInput')
+      const chatMessages = document.getElementById('chatMessages')
+      const sendBtn = document.getElementById('sendBtn')
+      const clearChatBtn = document.getElementById('clearChatBtn')
+    
+      // Send message function
+      async function sendMessage(message) {
+        if (!message.trim()) return
+    
+        // Add user message to chat
+        addMessage(message, 'user')
+    
+        // Clear input and disable send button
+        chatInput.value = ''
+        sendBtn.disabled = true
+    
+        // Add typing indicator
+        const typingId = addTypingIndicator()
+    
+        try {
+          const response = await fetch('{% url "api_bible_chat" %}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ message: message })
+          })
+    
+          const data = await response.json()
+    
+          // Remove typing indicator
+          removeTypingIndicator(typingId)
+    
+          if (response.ok) {
+            addMessage(data.response, 'bot')
+          } else {
+            addMessage('Sorry, I encountered an error. Please try again.', 'bot')
+          }
+        } catch (error) {
+          removeTypingIndicator(typingId)
+          addMessage('Sorry, I encountered an error. Please try again.', 'bot')
+        } finally {
+          sendBtn.disabled = false
+          chatInput.focus()
+        }
+      }
+    
+      // Add message to chat
+      function addMessage(text, sender) {
+        const messageDiv = document.createElement('div')
+        messageDiv.className = `message ${sender}-message`
+    
+        const now = new Date()
+        const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    
+        messageDiv.innerHTML = `
+              <div class="message-avatar">
+                ${sender === 'user' ? '<svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>' : '<svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>'}
+              </div>
+              <div class="message-content">
+                <div class="message-text">${formatMessage(text)}</div>
+                <div class="message-time">${timeString}</div>
+              </div>
+            `
+    
+        chatMessages.appendChild(messageDiv)
+        chatMessages.scrollTop = chatMessages.scrollHeight
+      }
+    
+      // Format message text (handle line breaks and bold text)
+      function formatMessage(text) {
+        return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
+      }
+    
+      // Add typing indicator
+      function addTypingIndicator() {
+        const typingId = 'typing-' + Date.now()
+        const typingDiv = document.createElement('div')
+        typingDiv.id = typingId
+        typingDiv.className = 'message bot-message typing-indicator'
+    
+        typingDiv.innerHTML = `
+              <div class="message-avatar">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div class="message-content">
+                <div class="message-text">
+                  <span>Bible Assistant is typing</span>
+                  <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                  </div>
+                </div>
+              </div>
+            `
+    
+        chatMessages.appendChild(typingDiv)
+        chatMessages.scrollTop = chatMessages.scrollHeight
+        return typingId
+      }
+    
+      // Remove typing indicator
+      function removeTypingIndicator(typingId) {
+        const typingElement = document.getElementById(typingId)
+        if (typingElement) {
+          typingElement.remove()
+        }
+      }
+    
+      // Event listeners
+      chatForm.addEventListener('submit', function (e) {
+        e.preventDefault()
+        const message = chatInput.value.trim()
+        if (message) {
+          sendMessage(message)
+        }
+      })
+    
+      // Quick action buttons
+      document.querySelectorAll('.quick-action-btn').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          const action = this.dataset.action
+          let message = ''
+    
+          switch (action) {
+            case 'random-verse':
+              message = 'random verse'
+              break
+            case 'old-testament':
+              message = 'old testament verse'
+              break
+            case 'new-testament':
+              message = 'new testament verse'
+              break
+          }
+    
+          if (message) {
+            sendMessage(message)
+          }
+        })
+      })
+    
+      // Topic buttons
+      document.querySelectorAll('.topic-btn').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          const topic = this.dataset.topic
+          sendMessage(topic)
+        })
+      })
+    
+      // Clear chat
+      clearChatBtn.addEventListener('click', function () {
+        if (confirm('Are you sure you want to clear the chat history?')) {
+          // Keep only the initial bot message
+          const messages = chatMessages.querySelectorAll('.message')
+          for (let i = 1; i < messages.length; i++) {
+            messages[i].remove()
+          }
+        }
+      })
+    
+      // Focus input on load
+      chatInput.focus()
+    })
+  </script>
+{% endblock %}

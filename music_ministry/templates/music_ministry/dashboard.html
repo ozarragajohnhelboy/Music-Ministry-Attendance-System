@@ -7,6 +7,22 @@
     <p class="page-subtitle">Organize your worship team schedules</p>
   </div>
 
+  {% if daily_verse %}
+    <div class="daily-verse-container">
+      <div class="daily-verse-card">
+        <div class="daily-verse-header">
+          <h3 class="daily-verse-title">Daily Verse</h3>
+          <span class="daily-verse-date">{{ daily_verse.date|date:"F j, Y" }}</span>
+        </div>
+        <div class="daily-verse-content">
+          <div class="verse-reference">{{ daily_verse.verse.reference }}</div>
+          <div class="verse-text">"{{ daily_verse.verse.text }}"</div>
+          <div class="verse-testament">{{ daily_verse.verse.book.get_testament_display }}</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   <div class="tabs-container">
     <div class="tabs-nav">
       <div class="tabs-buttons">

@@ -10,10 +10,12 @@ from django.db import transaction
 from datetime import datetime, date
 import json
 
-from .models import User, Member, Event, EventAssignment, Lineup, Song, Notification
+from .models import User, Member, Event, EventAssignment, Lineup, Song, Notification, DailyVerse, ChatMessage
 from .forms import CustomUserCreationForm, EventForm, EventAssignmentForm, LineupForm, SongForm, LineupApprovalForm
 from .notifications import create_event_assignment_notifications, create_lineup_approval_notifications, get_unread_notifications_count, mark_notification_as_read, mark_all_notifications_as_read
 from .email_service import send_event_assignment_emails, send_lineup_approval_emails
+from .bible_service import BibleChatbot
+from .openai_bible_service import OpenAIBibleService
 
 
 def is_admin(user):
@@ -103,6 +105,9 @@ def dashboard(request):
             'can_edit': can_edit
         })
     
+    # Get today's daily verse
+    daily_verse = DailyVerse.get_todays_verse()
+    
     return render(request, 'music_ministry/dashboard.html', {
         'events': events,
         'upcoming_events': upcoming_events,
@@ -114,6 +119,7 @@ def dashboard(request):
         'events_with_lineups': events_with_lineups,
         'unread_notifications_count': unread_notifications_count,
         'can_create_events': can_create_events,
+        'daily_verse': daily_verse,
     })
 
 
@@ -809,4 +815,69 @@ def api_delete_notification(request, notification_id):
         return JsonResponse({'success': True})
     except Notification.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Notification not found'})
+
+
+@login_required
+def bible_chatbot(request):
+    """Bible chatbot page"""
+    recent_messages = ChatMessage.objects.filter(user=request.user).order_by('-created_at')[:10]
+    
+    return render(request, 'music_ministry/bible_chatbot.html', {
+        'recent_messages': recent_messages
+    })
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def api_bible_chat(request):
+    """API endpoint for Bible chatbot"""
+    try:
+        data = json.loads(request.body)
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return JsonResponse({'error': 'Message is required'}, status=400)
+        
+        # Try OpenAI first, fallback to local chatbot
+        try:
+            # Initialize OpenAI Bible service
+            openai_service = OpenAIBibleService()
+            response, is_bible_related = openai_service.generate_response(message, request.user)
+        except Exception as openai_error:
+            print(f"OpenAI service error: {openai_error}")
+            # Fallback to local Bible chatbot
+            chatbot = BibleChatbot()
+            response, is_bible_related = chatbot.generate_response(message, request.user)
+            chatbot.save_conversation(request.user, message, response, is_bible_related)
+        
+        return JsonResponse({
+            'response': response,
+            'is_bible_related': is_bible_related
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_daily_verse(request):
+    """API endpoint to get today's daily verse"""
+    daily_verse = DailyVerse.get_todays_verse()
+    
+    if daily_verse:
+        return JsonResponse({
+            'verse': {
+                'reference': daily_verse.verse.reference,
+                'text': daily_verse.verse.text,
+                'book': daily_verse.verse.book.name,
+                'testament': daily_verse.verse.book.get_testament_display()
+            },
+            'date': daily_verse.date.strftime('%Y-%m-%d')
+        })
+    else:
+        return JsonResponse({'error': 'No daily verse available'}, status=404)
 
