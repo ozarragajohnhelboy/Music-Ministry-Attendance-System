@@ -22,4 +22,5 @@ urlpatterns = [
     path('bible-chatbot/', views.bible_chatbot, name='bible_chatbot'),
     path('api/bible-chat/', views.api_bible_chat, name='api_bible_chat'),
     path('api/daily-verse/', views.api_daily_verse, name='api_daily_verse'),
+    path('api/create-event-from-chat/', views.api_create_event_from_chat, name='api_create_event_from_chat'),
 ]

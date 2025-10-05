@@ -2617,6 +2617,201 @@ body {
     }
 }
 
+/* Chat Action Button */
+.chat-action-btn {
+    margin-top: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2);
+}
+
+.chat-action-btn:hover {
+    background: linear-gradient(135deg, #6d28d9 0%, #9333ea 100%);
+    box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3);
+    transform: translateY(-1px);
+}
+
+.chat-action-btn:active {
+    transform: translateY(0);
+}
+
+.chat-action-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Chat Event Form Container */
+.chat-event-form-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.chat-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    color: white;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-form-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.chat-form-close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.chat-form-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.chat-event-form {
+    padding: 1rem;
+}
+
+.chat-form-group {
+    margin-bottom: 1rem;
+}
+
+.chat-form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.chat-form-hint {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.chat-form-input,
+.chat-form-select {
+    width: 100%;
+    padding: 0.625rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.chat-form-input:focus,
+.chat-form-select:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.chat-form-select[multiple] {
+    min-height: 80px;
+}
+
+.chat-form-select option {
+    padding: 0.5rem;
+}
+
+.chat-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.chat-form-buttons {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.chat-form-btn {
+    flex: 1;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.chat-form-btn-primary {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2);
+}
+
+.chat-form-btn-primary:hover {
+    background: linear-gradient(135deg, #6d28d9 0%, #9333ea 100%);
+    box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3);
+    transform: translateY(-1px);
+}
+
+.chat-form-btn-primary:active {
+    transform: translateY(0);
+}
+
+.chat-form-btn-primary.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.chat-form-btn-primary.loading .btn-text {
+    display: none;
+}
+
+.chat-form-btn-primary.loading .btn-spinner {
+    display: inline-block;
+}
+
+.chat-form-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.chat-form-btn-secondary:hover {
+    background: #e5e7eb;
+}
+
 /* Mobile responsiveness for floating chat */
 @media (max-width: 768px) {
     .floating-chat-widget {
@@ -2641,6 +2836,14 @@ body {
     }
 
     .chat-window-input {
+        padding: 0.75rem;
+    }
+
+    .chat-form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .chat-event-form {
         padding: 0.75rem;
     }
 }

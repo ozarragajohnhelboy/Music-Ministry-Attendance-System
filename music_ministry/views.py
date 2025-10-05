@@ -831,7 +831,7 @@ def bible_chatbot(request):
 @login_required
 @require_http_methods(["POST"])
 def api_bible_chat(request):
-    """API endpoint for Bible chatbot"""
+    """API endpoint for Bible chatbot with conversational event creation"""
     try:
         data = json.loads(request.body)
         message = data.get('message', '').strip()
@@ -839,7 +839,30 @@ def api_bible_chat(request):
         if not message:
             return JsonResponse({'error': 'Message is required'}, status=400)
         
-        # Try OpenAI first, fallback to local chatbot
+        # Check if user is admin and if they want to create an event
+        if request.user.role == 'admin':
+            # Check for event creation intent
+            event_keywords = ['create event', 'make event', 'new event', 'add event', 'schedule event']
+            message_lower = message.lower()
+            
+            if any(keyword in message_lower for keyword in event_keywords):
+                # Initialize event creation conversation
+                request.session['event_creation_state'] = {
+                    'step': 'title',
+                    'data': {}
+                }
+                response = "Great! Let's create a new event. What is the title of the event?"
+                return JsonResponse({
+                    'response': response,
+                    'is_bible_related': False,
+                    'event_creation_mode': True
+                })
+            
+            # Check if we're in event creation mode
+            if 'event_creation_state' in request.session:
+                return handle_event_creation_conversation(request, message)
+        
+        # Normal Bible chat flow
         try:
             # Initialize OpenAI Bible service
             openai_service = OpenAIBibleService()
@@ -862,6 +885,404 @@ def api_bible_chat(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+def handle_event_creation_conversation(request, message):
+    """Handle the conversational flow for event creation"""
+    from difflib import get_close_matches
+    
+    state = request.session['event_creation_state']
+    current_step = state['step']
+    event_data = state['data']
+    
+    # Handle cancel command
+    if message.lower() in ['cancel', 'stop', 'quit', 'exit']:
+        del request.session['event_creation_state']
+        return JsonResponse({
+            'response': "Event creation cancelled. How else can I help you?",
+            'is_bible_related': False
+        })
+    
+    # Step 1: Get event title
+    if current_step == 'title':
+        event_data['title'] = message
+        state['step'] = 'date'
+        state['data'] = event_data
+        request.session['event_creation_state'] = state
+        return JsonResponse({
+            'response': f"Great! Event title: '{message}'. When is the event? (Format: YYYY-MM-DD, e.g., 2025-10-12)",
+            'is_bible_related': False,
+            'event_creation_mode': True
+        })
+    
+    # Step 2: Get date
+    elif current_step == 'date':
+        # Validate date format
+        try:
+            from datetime import datetime
+            datetime.strptime(message, '%Y-%m-%d')
+            event_data['date'] = message
+            state['step'] = 'start_time'
+            state['data'] = event_data
+            request.session['event_creation_state'] = state
+            return JsonResponse({
+                'response': f"Perfect! Date set to {message}. What time does the event start? (Format: HH:MM, e.g., 09:00)",
+                'is_bible_related': False,
+                'event_creation_mode': True
+            })
+        except ValueError:
+            return JsonResponse({
+                'response': "Invalid date format. Please use YYYY-MM-DD format (e.g., 2025-10-12)",
+                'is_bible_related': False,
+                'event_creation_mode': True
+            })
+    
+    # Step 3: Get start time
+    elif current_step == 'start_time':
+        # Validate time format
+        try:
+            from datetime import datetime
+            datetime.strptime(message, '%H:%M')
+            event_data['start_time'] = message
+            state['step'] = 'end_time'
+            state['data'] = event_data
+            request.session['event_creation_state'] = state
+            return JsonResponse({
+                'response': f"Got it! Start time: {message}. What time does the event end? (Format: HH:MM, e.g., 11:00)",
+                'is_bible_related': False,
+                'event_creation_mode': True
+            })
+        except ValueError:
+            return JsonResponse({
+                'response': "Invalid time format. Please use HH:MM format (e.g., 09:00)",
+                'is_bible_related': False,
+                'event_creation_mode': True
+            })
+    
+    # Step 4: Get end time
+    elif current_step == 'end_time':
+        try:
+            from datetime import datetime
+            datetime.strptime(message, '%H:%M')
+            event_data['end_time'] = message
+            state['step'] = 'worship_leaders'
+            state['data'] = event_data
+            request.session['event_creation_state'] = state
+            return JsonResponse({
+                'response': f"End time set to {message}. Now, who are the worship leaders? (Separate multiple names with commas, e.g., 'joy, irish')",
+                'is_bible_related': False,
+                'event_creation_mode': True
+            })
+        except ValueError:
+            return JsonResponse({
+                'response': "Invalid time format. Please use HH:MM format (e.g., 11:00)",
+                'is_bible_related': False,
+                'event_creation_mode': True
+            })
+    
+    # Step 5: Get worship leaders
+    elif current_step == 'worship_leaders':
+        names = [name.strip() for name in message.split(',')]
+        matched_members = find_members_by_names(names)
+        
+        if not matched_members:
+            return JsonResponse({
+                'response': f"I couldn't find any members matching '{message}'. Please try again with different names.",
+                'is_bible_related': False,
+                'event_creation_mode': True
+            })
+        
+        event_data['worship_leaders'] = [m.id for m in matched_members]
+        member_names = ', '.join([m.name for m in matched_members])
+        state['step'] = 'backup_worship_leaders'
+        state['data'] = event_data
+        request.session['event_creation_state'] = state
+        return JsonResponse({
+            'response': f"Found worship leaders: {member_names}. Who are the backup worship leaders? (Separate with commas, or type 'empty' to skip)",
+            'is_bible_related': False,
+            'event_creation_mode': True
+        })
+    
+    # Step 6: Get backup worship leaders
+    elif current_step == 'backup_worship_leaders':
+        if message.lower() in ['empty', 'skip', 'none', '']:
+            event_data['backup_worship_leaders'] = []
+            member_names = "None"
+        else:
+            names = [name.strip() for name in message.split(',')]
+            matched_members = find_members_by_names(names)
+            
+            if not matched_members:
+                return JsonResponse({
+                    'response': f"I couldn't find any members matching '{message}'. Please try again or type 'empty' to skip.",
+                    'is_bible_related': False,
+                    'event_creation_mode': True
+                })
+            
+            event_data['backup_worship_leaders'] = [m.id for m in matched_members]
+            member_names = ', '.join([m.name for m in matched_members])
+        
+        state['step'] = 'guitarists'
+        state['data'] = event_data
+        request.session['event_creation_state'] = state
+        return JsonResponse({
+            'response': f"Backup worship leaders: {member_names}. Who are the guitarists? (Separate with commas)",
+            'is_bible_related': False,
+            'event_creation_mode': True
+        })
+    
+    # Step 7: Get guitarists
+    elif current_step == 'guitarists':
+        names = [name.strip() for name in message.split(',')]
+        matched_members = find_members_by_names(names)
+        
+        if not matched_members:
+            return JsonResponse({
+                'response': f"I couldn't find any members matching '{message}'. Please try again with different names.",
+                'is_bible_related': False,
+                'event_creation_mode': True
+            })
+        
+        event_data['guitarists'] = [m.id for m in matched_members]
+        member_names = ', '.join([m.name for m in matched_members])
+        state['step'] = 'keys_player'
+        state['data'] = event_data
+        request.session['event_creation_state'] = state
+        return JsonResponse({
+            'response': f"Found guitarists: {member_names}. Who is the keys player? (Type a name, or 'empty' to skip)",
+            'is_bible_related': False,
+            'event_creation_mode': True
+        })
+    
+    # Step 8: Get keys player
+    elif current_step == 'keys_player':
+        if message.lower() in ['empty', 'skip', 'none', '']:
+            event_data['keys_player'] = None
+            member_name = "None"
+        else:
+            matched_members = find_members_by_names([message])
+            
+            if not matched_members:
+                return JsonResponse({
+                    'response': f"I couldn't find any member matching '{message}'. Please try again or type 'empty' to skip.",
+                    'is_bible_related': False,
+                    'event_creation_mode': True
+                })
+            
+            event_data['keys_player'] = matched_members[0].id
+            member_name = matched_members[0].name
+        
+        state['step'] = 'drummer'
+        state['data'] = event_data
+        request.session['event_creation_state'] = state
+        return JsonResponse({
+            'response': f"Keys player: {member_name}. Who is the drummer? (Type a name, or 'empty' to skip)",
+            'is_bible_related': False,
+            'event_creation_mode': True
+        })
+    
+    # Step 9: Get drummer
+    elif current_step == 'drummer':
+        if message.lower() in ['empty', 'skip', 'none', '']:
+            event_data['drummer'] = None
+            member_name = "None"
+        else:
+            matched_members = find_members_by_names([message])
+            
+            if not matched_members:
+                return JsonResponse({
+                    'response': f"I couldn't find any member matching '{message}'. Please try again or type 'empty' to skip.",
+                    'is_bible_related': False,
+                    'event_creation_mode': True
+                })
+            
+            event_data['drummer'] = matched_members[0].id
+            member_name = matched_members[0].name
+        
+        state['step'] = 'bassist'
+        state['data'] = event_data
+        request.session['event_creation_state'] = state
+        return JsonResponse({
+            'response': f"Drummer: {member_name}. Who is the bassist? (Type a name, or 'empty' to skip)",
+            'is_bible_related': False,
+            'event_creation_mode': True
+        })
+    
+    # Step 10: Get bassist and create event
+    elif current_step == 'bassist':
+        if message.lower() in ['empty', 'skip', 'none', '']:
+            event_data['bassist'] = None
+            member_name = "None"
+        else:
+            matched_members = find_members_by_names([message])
+            
+            if not matched_members:
+                return JsonResponse({
+                    'response': f"I couldn't find any member matching '{message}'. Please try again or type 'empty' to skip.",
+                    'is_bible_related': False,
+                    'event_creation_mode': True
+                })
+            
+            event_data['bassist'] = matched_members[0].id
+            member_name = matched_members[0].name
+        
+        # Create the event
+        try:
+            result = create_event_from_conversation(event_data)
+            del request.session['event_creation_state']
+            
+            return JsonResponse({
+                'response': f"✅ Perfect! Event '{event_data['title']}' has been created successfully!\n\nAll assigned members have been notified via email. The event is now visible on the calendar.",
+                'is_bible_related': False,
+                'event_created': True,
+                'event_id': result['event_id']
+            })
+        except Exception as e:
+            del request.session['event_creation_state']
+            return JsonResponse({
+                'response': f"❌ Sorry, there was an error creating the event: {str(e)}\n\nPlease try again or create the event manually.",
+                'is_bible_related': False,
+                'error': True
+            })
+
+
+def find_members_by_names(names):
+    """Find members by partial name matching"""
+    from difflib import get_close_matches
+    
+    matched_members = []
+    all_members = Member.objects.filter(is_active=True)
+    
+    for name in names:
+        name = name.strip().lower()
+        if not name:
+            continue
+        
+        # Try exact match first
+        exact_match = all_members.filter(name__icontains=name).first()
+        if exact_match:
+            matched_members.append(exact_match)
+            continue
+        
+        # Try fuzzy matching
+        all_member_names = [m.name.lower() for m in all_members]
+        close_matches = get_close_matches(name, all_member_names, n=1, cutoff=0.6)
+        
+        if close_matches:
+            matched_member = all_members.filter(name__icontains=close_matches[0]).first()
+            if matched_member:
+                matched_members.append(matched_member)
+    
+    return matched_members
+
+
+def create_event_from_conversation(event_data):
+    """Create event from conversational data"""
+    with transaction.atomic():
+        # Create event
+        event = Event.objects.create(
+            title=event_data['title'],
+            date=event_data['date'],
+            start_time=event_data['start_time'],
+            end_time=event_data['end_time'],
+            description='',
+            notes=''
+        )
+        
+        # Assign worship leaders
+        for leader_id in event_data.get('worship_leaders', []):
+            try:
+                member = Member.objects.get(id=leader_id)
+                EventAssignment.objects.create(
+                    event=event,
+                    member=member,
+                    assigned_role='worship_leader',
+                    is_backup=False
+                )
+            except Member.DoesNotExist:
+                pass
+        
+        # Assign backup worship leaders
+        for leader_id in event_data.get('backup_worship_leaders', []):
+            try:
+                member = Member.objects.get(id=leader_id)
+                EventAssignment.objects.create(
+                    event=event,
+                    member=member,
+                    assigned_role='worship_leader',
+                    is_backup=True
+                )
+            except Member.DoesNotExist:
+                pass
+        
+        # Assign guitarists
+        for guitarist_id in event_data.get('guitarists', []):
+            try:
+                member = Member.objects.get(id=guitarist_id)
+                EventAssignment.objects.create(
+                    event=event,
+                    member=member,
+                    assigned_role='guitarist',
+                    is_backup=False
+                )
+            except Member.DoesNotExist:
+                pass
+        
+        # Assign keys player (optional)
+        keys_player_id = event_data.get('keys_player')
+        if keys_player_id:
+            try:
+                member = Member.objects.get(id=keys_player_id)
+                EventAssignment.objects.create(
+                    event=event,
+                    member=member,
+                    assigned_role='keys',
+                    is_backup=False
+                )
+            except Member.DoesNotExist:
+                pass
+        
+        # Assign drummer (optional)
+        drummer_id = event_data.get('drummer')
+        if drummer_id:
+            try:
+                member = Member.objects.get(id=drummer_id)
+                EventAssignment.objects.create(
+                    event=event,
+                    member=member,
+                    assigned_role='drummer',
+                    is_backup=False
+                )
+            except Member.DoesNotExist:
+                pass
+        
+        # Assign bassist (optional)
+        bassist_id = event_data.get('bassist')
+        if bassist_id:
+            try:
+                member = Member.objects.get(id=bassist_id)
+                EventAssignment.objects.create(
+                    event=event,
+                    member=member,
+                    assigned_role='bassist',
+                    is_backup=False
+                )
+            except Member.DoesNotExist:
+                pass
+        
+        # Send notifications and emails
+        assigned_assignments = EventAssignment.objects.filter(event=event)
+        if assigned_assignments.exists():
+            event.refresh_from_db()
+            assigned_members = [assignment.member for assignment in assigned_assignments]
+            create_event_assignment_notifications(event, assigned_members)
+            send_event_assignment_emails(event)
+        
+        return {
+            'success': True,
+            'event_id': event.id,
+            'message': f'Event "{event.title}" created successfully!'
+        }
+
+
 @login_required
 @require_http_methods(["GET"])
 def api_daily_verse(request):
@@ -880,4 +1301,155 @@ def api_daily_verse(request):
         })
     else:
         return JsonResponse({'error': 'No daily verse available'}, status=404)
+
+
+@csrf_exempt
+@login_required
+@user_passes_test(is_admin)
+@require_http_methods(["POST"])
+def api_create_event_from_chat(request):
+    """API endpoint to create event from Bible Assistant chat"""
+    try:
+        data = json.loads(request.body)
+        
+        # Log the received data for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Received event data: {data}")
+        
+        # Validate required fields
+        required_fields = ['title', 'date', 'start_time', 'end_time', 'worship_leaders', 'backup_worship_leaders', 'guitarists']
+        for field in required_fields:
+            if not data.get(field):
+                return JsonResponse({'success': False, 'error': f'Missing required field: {field}'}, status=400)
+        
+        # Validate that required fields have at least one selection
+        if not data.get('worship_leaders') or len(data.get('worship_leaders', [])) == 0:
+            return JsonResponse({'success': False, 'error': 'At least one worship leader is required'}, status=400)
+        
+        if not data.get('backup_worship_leaders') or len(data.get('backup_worship_leaders', [])) == 0:
+            return JsonResponse({'success': False, 'error': 'At least one backup worship leader is required'}, status=400)
+        
+        if not data.get('guitarists') or len(data.get('guitarists', [])) == 0:
+            return JsonResponse({'success': False, 'error': 'At least one guitarist is required'}, status=400)
+        
+        with transaction.atomic():
+            # Create event
+            event = Event.objects.create(
+                title=data['title'],
+                date=data['date'],
+                start_time=data['start_time'],
+                end_time=data['end_time'],
+                description=data.get('description', ''),
+                notes=data.get('notes', '')
+            )
+            
+            # Assign worship leaders
+            for leader_id in data.get('worship_leaders', []):
+                try:
+                    member = Member.objects.get(id=leader_id)
+                    EventAssignment.objects.create(
+                        event=event,
+                        member=member,
+                        assigned_role='worship_leader',
+                        is_backup=False
+                    )
+                except Member.DoesNotExist:
+                    pass
+            
+            # Assign backup worship leaders
+            for leader_id in data.get('backup_worship_leaders', []):
+                try:
+                    member = Member.objects.get(id=leader_id)
+                    EventAssignment.objects.create(
+                        event=event,
+                        member=member,
+                        assigned_role='worship_leader',
+                        is_backup=True
+                    )
+                except Member.DoesNotExist:
+                    pass
+            
+            # Assign guitarists
+            for guitarist_id in data.get('guitarists', []):
+                try:
+                    member = Member.objects.get(id=guitarist_id)
+                    EventAssignment.objects.create(
+                        event=event,
+                        member=member,
+                        assigned_role='guitarist',
+                        is_backup=False
+                    )
+                except Member.DoesNotExist:
+                    pass
+            
+            # Assign keys player (optional)
+            keys_player_id = data.get('keys_player')
+            if keys_player_id and keys_player_id != '':
+                try:
+                    member = Member.objects.get(id=keys_player_id)
+                    EventAssignment.objects.create(
+                        event=event,
+                        member=member,
+                        assigned_role='keys',
+                        is_backup=False
+                    )
+                except (Member.DoesNotExist, ValueError):
+                    pass
+            
+            # Assign drummer (optional)
+            drummer_id = data.get('drummer')
+            if drummer_id and drummer_id != '':
+                try:
+                    member = Member.objects.get(id=drummer_id)
+                    EventAssignment.objects.create(
+                        event=event,
+                        member=member,
+                        assigned_role='drummer',
+                        is_backup=False
+                    )
+                except (Member.DoesNotExist, ValueError):
+                    pass
+            
+            # Assign bassist (optional)
+            bass_player_id = data.get('bass_player')
+            if bass_player_id and bass_player_id != '':
+                try:
+                    member = Member.objects.get(id=bass_player_id)
+                    EventAssignment.objects.create(
+                        event=event,
+                        member=member,
+                        assigned_role='bassist',
+                        is_backup=False
+                    )
+                except (Member.DoesNotExist, ValueError):
+                    pass
+            
+            # Send notifications and emails
+            assigned_assignments = EventAssignment.objects.filter(event=event)
+            if assigned_assignments.exists():
+                event.refresh_from_db()
+                # Extract Member objects from EventAssignment objects
+                assigned_members = [assignment.member for assignment in assigned_assignments]
+                create_event_assignment_notifications(event, assigned_members)
+                send_event_assignment_emails(event)
+        
+        return JsonResponse({
+            'success': True,
+            'event_id': event.id,
+            'message': f'Event "{event.title}" created successfully!'
+        })
+        
+    except json.JSONDecodeError as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"JSON decode error: {str(e)}")
+        return JsonResponse({'success': False, 'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error creating event: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
